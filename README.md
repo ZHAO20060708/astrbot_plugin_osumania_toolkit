@@ -1,6 +1,6 @@
 <div align="center">
 
-# AstrBot Osu!mania Toolkit
+# AstrBot Osu!mania Greek
 
 ✨ **适用于 AstrBot 的 Osu!mania 图片处理与合成插件** ✨
 
