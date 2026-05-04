@@ -59,5 +59,5 @@
 
 ## 🤝 致谢
 
-本插件灵感与原版实现参考了：
+本插件灵感与原版实现及图片参考了：
 - [YakumoZn/nonebot-plugin-osugreek](https://github.com/YakumoZn/nonebot-plugin-osugreek)
