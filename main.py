@@ -274,7 +274,6 @@ class OsuManiaToolkit(Star):
             yield event.plain_result(f"错误: {'\n'.join(error_msg)}")
             return
         state = {"type": "acc", "status": "init", "acc_str": acc_str, "dan_name": dan_name, "bid": bid, "num_songs": num_songs, "sv2_flag": sv2_flag, "reverse_flag": reverse_flag, "reject_time": 0, "mode": None}
-        if bid:
         
         @session_waiter(timeout=60, record_history_chains=False)
         async def acc_waiter(controller: SessionController, wait_event: AstrMessageEvent):
@@ -326,8 +325,21 @@ class OsuManiaToolkit(Star):
             except Exception as e:
                 yield event.plain_result(f"处理谱面时出错: {str(e)}")
                 return
+        
         if dan_name:
-            f _acc_calculate(self, state: dict) -> str:
+            state["mode"] = "predefined"
+            if acc_str:
+                yield event.plain_result(await self._acc_calculate(state))
+            else:
+                prompt = "单曲ACC" if reverse_flag else "ACC变化"
+                yield event.plain_result(f"已选择段位: {dan_name}\n请输入{prompt}:")
+                try:
+                    await acc_waiter(event)
+                except TimeoutError:
+                    yield event.plain_result("操作已超时，会话结束。")
+            return
+
+    async def _acc_calculate(self, state: dict) -> str:
         try:
             mode, acc_str, sv2_flag, reverse_flag = state["mode"], state["acc_str"], state.get("sv2_flag", False), state.get("reverse_flag", False)
             if mode == "predefined":
