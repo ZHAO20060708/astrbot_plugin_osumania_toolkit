@@ -32,7 +32,7 @@ from .algorithm.acc import (
 from .algorithm.utils import parse_osu_filename, is_mc_file, resolve_meta_data
 from .algorithm.conversion import convert_mc_to_osu
 
-@register("osumania_toolkit", "ZHAO20060708", "A plugin for osu!mania tools like greek letter overlay", "1.0.0", "")
+@register("osumania_toolkit", "ZHAO20060708", "A plugin for osu!mania tools", "1.0.1", "")
 class OsuManiaToolkit(Star):
     def __init__(self, context: Context):
         super().__init__(context)
