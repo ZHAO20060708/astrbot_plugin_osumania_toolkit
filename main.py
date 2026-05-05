@@ -8,7 +8,7 @@ from PIL import Image as PILImage, ImageChops, ImageFilter
 
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
-from astrbot.api.message_components import Image, Record, Reply
+from astrbot.api.message_components import Image, Reply
 
 @register("osumania_toolkit", "ZHAO20060708", "A plugin for osu!mania tools like greek letter overlay", "1.0.0", "")
 class OsuManiaToolkit(Star):
@@ -128,6 +128,7 @@ class OsuManiaToolkit(Star):
         return greek_img.resize((new_width, new_height), PILImage.Resampling.LANCZOS)
 
     @filter.command("osugreek")
+    @filter.command("osumania")
     async def osugreek_cmd(self, event: AstrMessageEvent, greek_name: str = "", chromatic_intensity: int = 4, glitch_intensity: int = 0):
         '''生成希腊字母特效图片
         用法: /osugreek <希腊字母名称> [色散强度] [故障强度]
@@ -138,7 +139,7 @@ class OsuManiaToolkit(Star):
         - 故障强度: 将图片应用故障效果。范围[0,5], 不填则默认0。
         '''
         if not greek_name or greek_name == "help":
-            help_text = "用法：/osugreek <希腊字母名称> [色散强度] [故障强度]\n说明: 支持在命令中附带图片或回复一张图片。\n参数说明: \n- 色散强度: 将图片RGB分离。范围[1,20], 不填则默认4。\n- 故障强度: 将图片应用故障效果。强度决定故障效果的程度。范围[0,5], 不填则默认0。"
+            help_text = "用法：/osugreek <希腊字母名称> [色散强度] [故障强度]\n别名：/osumania\n说明: 支持在命令中附带图片或回复一张图片。\n参数说明: \n- 色散强度: 将图片RGB分离。范围[1,20], 不填则默认4。\n- 故障强度: 将图片应用故障效果。强度决定故障效果的程度。范围[0,5], 不填则默认0。"
             available = [f.stem for f in self.image_dir.glob("*.png")]
             available.sort()
             help_text += f"\n可用的希腊字母名称有: {', '.join(available)}"
@@ -216,3 +217,14 @@ class OsuManiaToolkit(Star):
         except Exception as e:
             yield event.plain_result(f"图片处理失败: {str(e)}")
             return
+
+
+    @filter.command("osugreek_list")
+    async def osugreek_list_cmd(self, event: AstrMessageEvent):
+        """列出可用的希腊字母素材名称"""
+        available = [f.stem for f in self.image_dir.glob("*.png")]
+        available.sort()
+        if not available:
+            yield event.plain_result("images 目录下暂时没有可用素材，请先放入 *.png 文件。")
+            return
+        yield event.plain_result("可用素材：" + ", ".join(available))
