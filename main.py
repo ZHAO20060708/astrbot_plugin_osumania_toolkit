@@ -8,7 +8,29 @@ from PIL import Image as PILImage, ImageChops, ImageFilter
 
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
-from astrbot.api.message_components import Image, Record, Reply
+from astrbot.api.message_components import Image, Record, Reply, File
+from astrbot.core.utils.session_waiter import session_waiter, SessionController
+
+import re
+from .config import get_plugin_config, Config
+from .file.cache import CACHE_DIR
+from .file.path import safe_filename
+from .api.osu import download_file_by_id
+from .file.cleanup import cleanup_paths, cleanup_old_cache
+
+# 导入核心算法
+from .algorithm.acc import (
+    calculate_acc_from_dan, 
+    calculate_acc,
+    calculate_acc_change_from_dan,
+    calculate_acc_change,
+    validate_dan_name, 
+    parse_acc_cmd, 
+    calculate_map_notes,
+    get_acc_result_text,
+)
+from .algorithm.utils import parse_osu_filename, is_mc_file, resolve_meta_data
+from .algorithm.conversion import convert_mc_to_osu
 
 @register("osumania_toolkit", "ZHAO20060708", "A plugin for osu!mania tools like greek letter overlay", "1.0.0", "")
 class OsuManiaToolkit(Star):
@@ -19,6 +41,12 @@ class OsuManiaToolkit(Star):
         self.image_dir.mkdir(exist_ok=True)
         self.cache_dir = self.plugin_dir / "cache"
         self.cache_dir.mkdir(exist_ok=True)
+        
+        self.config = get_plugin_config(Config)
+        
+        # 启动时执行清理逻辑
+        max_age = self.config.omtk_cache_max_age
+        asyncio.create_task(asyncio.to_thread(cleanup_old_cache, CACHE_DIR, max_age_hours=max_age))
 
     def add_chromatic_aberration(self, image: PILImage.Image, intensity: int = 4) -> PILImage.Image:
         intensity = max(1, min(20, intensity))
@@ -216,3 +244,132 @@ class OsuManiaToolkit(Star):
         except Exception as e:
             yield event.plain_result(f"图片处理失败: {str(e)}")
             return
+
+    async def _get_reply_file(self, event: AstrMessageEvent):
+        for component in event.message_obj.message:
+            if isinstance(component, File):
+                return getattr(component, 'url', None), getattr(component, 'name', 'file')
+        return None, None
+
+    @filter.command("acc")
+    async def acc_cmd(self, event: AstrMessageEvent):
+        '''单曲 ACC 计算'''
+        cmd_text = re.sub(r'^/acc\s*', '', event.message_str.strip())
+        
+        if cmd_text.strip().lower() in ["help"]:
+            help_text = (
+                "用法: /acc [段位名 | bid:<谱面ID>] [各曲ACC或当前累计ACC] [-s] [-r]\n"
+                "说明: 用于计算 osu!mania 组曲(段位)中每一首曲子需要的 ACC 或造成的 ACC 变化。\n"
+                "参数参数:\n"
+                "- 段位名: 指定预设的段位名称\n"
+                "- bid:<谱面ID>: 指定组曲谱面ID\n"
+                "- -s: 使用 ScoreV2 计算\n"
+                "- -r: 开启反向计算（即通过各首单曲的 ACC 推放最后总体的 ACC 变化）"
+            )
+            yield event.plain_result(help_text)
+            return
+
+        dan_name, acc_str, bid, num_songs, sv2_flag, reverse_flag, error_msg = parse_acc_cmd(cmd_text)
+        if error_msg:
+            yield event.plain_result(f"错误: {'\n'.join(error_msg)}")
+            return
+        state = {"type": "acc", "status": "init", "acc_str": acc_str, "dan_name": dan_name, "bid": bid, "num_songs": num_songs, "sv2_flag": sv2_flag, "reverse_flag": reverse_flag, "reject_time": 0, "mode": None}
+        if bid:
+        
+        @session_waiter(timeout=60, record_history_chains=False)
+        async def acc_waiter(controller: SessionController, wait_event: AstrMessageEvent):
+            text = wait_event.message_str.strip()
+            if text == "0":
+                await wait_event.send(wait_event.plain_result("操作已取消。"))
+                controller.stop()
+                return
+
+            if state.get("type") == "acc":
+                if re.match(r'^(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))+$', text):
+                    state["acc_str"] = text
+                    if state["mode"] in ["predefined", "bid", "custom", "file"]:
+                        result = await self._acc_calculate(state)
+                        await wait_event.send(wait_event.plain_result(result))
+                        controller.stop()
+                        return
+                
+                if validate_dan_name(text, state.get("sv2_flag")):
+                    state["mode"], state["dan_name"] = "predefined", text
+                    prompt = "单曲ACC" if state.get("reverse_flag") else "ACC变化"
+                    await wait_event.send(wait_event.plain_result(f"已选择段位: {text}\n请输入{prompt}:"))
+                    controller.keep(timeout=60, reset_timeout=True)
+                    return
+            
+            await wait_event.send(wait_event.plain_result("输入无效，请重新输入或输入 0 取消。"))
+            controller.keep(timeout=60, reset_timeout=True)
+
+        if bid:
+            state["mode"] = "bid"
+            try:
+                osu_path, osu_name = await download_file_by_id(CACHE_DIR, bid)
+                state["osu_path"] = osu_path
+                meta_data = parse_osu_filename(osu_name)
+                state["display_name"] = f"{meta_data['Artist']} - {meta_data['Title']} [{meta_data['Version']}]" if meta_data else osu_name
+                note_counts = await calculate_map_notes(osu_path, num_songs, sv2_flag)
+                state["note_counts"] = note_counts
+                if acc_str:
+                    yield event.plain_result(await self._acc_calculate(state))
+                else:
+                    acc_format = "-".join([f"acc{i+1}" for i in range(len(note_counts))])
+                    prompt = "单曲ACC" if reverse_flag else "ACC变化"
+                    yield event.plain_result(f"谱面物量分布: {'-'.join(str(n) for n in note_counts)}\n请输入{prompt} (格式: {acc_format}):")
+                    try:
+                        await acc_waiter(event)
+                    except TimeoutError:
+                        yield event.plain_result("操作已超时，会话结束。")
+                return
+            except Exception as e:
+                yield event.plain_result(f"处理谱面时出错: {str(e)}")
+                return
+        if dan_name:
+            f _acc_calculate(self, state: dict) -> str:
+        try:
+            mode, acc_str, sv2_flag, reverse_flag = state["mode"], state["acc_str"], state.get("sv2_flag", False), state.get("reverse_flag", False)
+            if mode == "predefined":
+                dan_name = state["dan_name"]
+                single_accs, err = calculate_acc_change_from_dan(dan_name, acc_str, sv2_flag) if reverse_flag else calculate_acc_from_dan(dan_name, acc_str, sv2_flag)
+                if err: return f"计算错误: {err}"
+                return get_acc_result_text("predefined", dan_name, None, acc_str, single_accs, sv2_flag, reverse_flag)
+            elif mode in ["bid", "file", "custom"]:
+                note_counts, display_name = state["note_counts"], state.get("display_name", "未知")
+                single_accs, err = calculate_acc_change(note_counts, acc_str) if reverse_flag else calculate_acc(note_counts, acc_str, sv2_flag)
+                if err: return f"计算错误: {err}"
+                return get_acc_result_text(mode, display_name, note_counts, acc_str, single_accs, sv2_flag, reverse_flag)
+            return "错误: 未知模式"
+        finally:
+            await cleanup_paths(state.get("osu_path"), state.get("downloaded_path"), state.get("converted_path"))
+
+    @filter.on_event(filter.EventStage.BEFORE_LLM)
+    async def handle_sessions(self, event: AstrMessageEvent):
+        sender_id = event.get_sender_id()
+        if sender_id not in self.sessions: return
+        state, text = self.sessions[sender_id], event.message_str.strip()
+        if text == "0":
+            del self.sessions[sender_id]
+            yield event.plain_result("操作已取消。")
+            return
+        if state.get("type") == "acc":
+            if re.match(r'^(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))+$', text):
+                state["acc_str"] = text
+                if state["mode"] in ["predefined", "bid", "custom", "file"]:
+                    result = await self._acc_calculate(state); del self.sessions[sender_id]; yield event.plain_result(result); return
+            if validate_dan_name(text, state.get("sv2_flag")):
+                state["mode"], state["dan_name"] = "predefined", text
+                prompt = "单曲ACC" if state.get("reverse_flag") else "ACC变化"
+                yield event.plain_result(f"已选择段位: {text}\n请输入{prompt}:"); return
+        yield event.plain_result("输入无效，请重新输入或输入 0 取消。")
+
+    
+    @filter.command("希腊字母")
+    async def osugreek_alias(self, event: AstrMessageEvent):
+        async for res in self.osugreek_cmd(event):
+            yield res
+    @filter.command("单曲")
+    async def acc_alias(self, event: AstrMessageEvent):
+        async for res in self.acc_cmd(event): 
+            yield res
