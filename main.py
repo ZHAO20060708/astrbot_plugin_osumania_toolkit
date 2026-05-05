@@ -32,24 +32,6 @@ from .algorithm.acc import (
 from .algorithm.utils import parse_osu_filename, is_mc_file, resolve_meta_data
 from .algorithm.conversion import convert_mc_to_osu
 
-# 兼容性处理：某些版本的 `filter` 可能没有 `on_event` 属性（或名称不同）。
-# 我们在此创建一个安全的事件装饰器别名，优先使用现有实现，缺失时退化为 noop。
-_filter_event_decorator_impl = getattr(filter, 'on_event', None) or getattr(filter, 'on', None) or getattr(filter, 'event', None)
-def _event_decorator(*dargs, **dkwargs):
-    if _filter_event_decorator_impl is None:
-        def _noop(f):
-            return f
-        return _noop
-    try:
-        return _filter_event_decorator_impl(*dargs, **dkwargs)
-    except Exception:
-        try:
-            return _filter_event_decorator_impl
-        except Exception:
-            def _noop(f):
-                return f
-            return _noop
-
 @register("osumania_toolkit", "ZHAO20060708", "A plugin for osu!mania tools", "1.0.1", "")
 class OsuManiaToolkit(Star):
     def __init__(self, context: Context):
@@ -373,26 +355,6 @@ class OsuManiaToolkit(Star):
             return "错误: 未知模式"
         finally:
             await cleanup_paths(state.get("osu_path"), state.get("downloaded_path"), state.get("converted_path"))
-
-    @_event_decorator(filter.EventStage.BEFORE_LLM)
-    async def handle_sessions(self, event: AstrMessageEvent):
-        sender_id = event.get_sender_id()
-        if sender_id not in self.sessions: return
-        state, text = self.sessions[sender_id], event.message_str.strip()
-        if text == "0":
-            del self.sessions[sender_id]
-            yield event.plain_result("操作已取消。")
-            return
-        if state.get("type") == "acc":
-            if re.match(r'^(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))+$', text):
-                state["acc_str"] = text
-                if state["mode"] in ["predefined", "bid", "custom", "file"]:
-                    result = await self._acc_calculate(state); del self.sessions[sender_id]; yield event.plain_result(result); return
-            if validate_dan_name(text, state.get("sv2_flag")):
-                state["mode"], state["dan_name"] = "predefined", text
-                prompt = "单曲ACC" if state.get("reverse_flag") else "ACC变化"
-                yield event.plain_result(f"已选择段位: {text}\n请输入{prompt}:"); return
-        yield event.plain_result("输入无效，请重新输入或输入 0 取消。")
 
     
     @filter.command("希腊字母")
