@@ -32,6 +32,24 @@ from .algorithm.acc import (
 from .algorithm.utils import parse_osu_filename, is_mc_file, resolve_meta_data
 from .algorithm.conversion import convert_mc_to_osu
 
+# 兼容性处理：某些版本的 `filter` 可能没有 `on_event` 属性（或名称不同）。
+# 我们在此创建一个安全的事件装饰器别名，优先使用现有实现，缺失时退化为 noop。
+_filter_event_decorator_impl = getattr(filter, 'on_event', None) or getattr(filter, 'on', None) or getattr(filter, 'event', None)
+def _event_decorator(*dargs, **dkwargs):
+    if _filter_event_decorator_impl is None:
+        def _noop(f):
+            return f
+        return _noop
+    try:
+        return _filter_event_decorator_impl(*dargs, **dkwargs)
+    except Exception:
+        try:
+            return _filter_event_decorator_impl
+        except Exception:
+            def _noop(f):
+                return f
+            return _noop
+
 @register("osumania_toolkit", "ZHAO20060708", "A plugin for osu!mania tools", "1.0.1", "")
 class OsuManiaToolkit(Star):
     def __init__(self, context: Context):
@@ -356,7 +374,7 @@ class OsuManiaToolkit(Star):
         finally:
             await cleanup_paths(state.get("osu_path"), state.get("downloaded_path"), state.get("converted_path"))
 
-    @filter.on_event(filter.EventStage.BEFORE_LLM)
+    @_event_decorator(filter.EventStage.BEFORE_LLM)
     async def handle_sessions(self, event: AstrMessageEvent):
         sender_id = event.get_sender_id()
         if sender_id not in self.sessions: return
