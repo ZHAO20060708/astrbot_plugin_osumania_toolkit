@@ -3,7 +3,7 @@ import aiohttp
 import shutil
 
 from astrbot.api import logger
-from .config import get_plugin_config
+from ..config import get_plugin_config
 from pathlib import Path
 from urllib.parse import unquote
 from typing import Optional, Tuple, Any

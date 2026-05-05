@@ -1,6 +1,6 @@
 import re
 
-from .config import get_plugin_config
+from ..config import get_plugin_config
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 from typing import Optional

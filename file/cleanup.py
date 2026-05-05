@@ -3,7 +3,7 @@ import shutil
 import time
 
 from astrbot.api import logger
-from .config import get_plugin_config
+from ..config import get_plugin_config
 
 from pathlib import Path
 from ..config import Config

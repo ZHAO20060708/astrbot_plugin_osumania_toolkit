@@ -6,7 +6,7 @@ import os
 from collections import Counter
 from typing import Optional
 
-from .config import get_plugin_config
+from ...config import get_plugin_config
 from astrbot.api import logger
 
 from ...config import Config

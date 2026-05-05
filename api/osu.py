@@ -2,7 +2,7 @@ import re
 import asyncio
 import aiohttp
 
-from .config import get_plugin_config
+from ..config import get_plugin_config
 from pathlib import Path
 from urllib.parse import unquote
 from ..config import Config
