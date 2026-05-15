@@ -467,12 +467,13 @@ class OsuManiaToolkit(Star):
                 yield event.plain_result(f"参数提取或验证错误: {e}")
                 return
 
-            rendered = render_one_last_image(original_img, config)
+            # 图片处理涉及大量矩阵运算，使用 to_thread 放入线程池，防止阻塞机器人异步事件循环导致掉线或被 Kill
+            rendered = await asyncio.to_thread(render_one_last_image, original_img, config)
 
             if mode == "diff":
-                final_image = make_side_by_side_diff(rendered, original_img)
+                final_image = await asyncio.to_thread(make_side_by_side_diff, rendered, original_img)
             elif mode == "diff2":
-                final_image = make_diagonal_diff(rendered, original_img, config.bevel_position)
+                final_image = await asyncio.to_thread(make_diagonal_diff, rendered, original_img, config.bevel_position)
             else:
                 final_image = rendered
 
