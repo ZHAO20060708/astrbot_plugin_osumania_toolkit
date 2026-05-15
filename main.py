@@ -31,6 +31,7 @@ from .algorithm.acc import (
 )
 from .algorithm.utils import parse_osu_filename, is_mc_file, resolve_meta_data
 from .algorithm.conversion import convert_mc_to_osu
+from .one_last_image import render_one_last_image, Config as OLIConfig, make_side_by_side_diff, make_diagonal_diff
 
 @register("osumania_toolkit", "ZHAO20060708", "A plugin for osu!mania tools", "1.0.1", "")
 class OsuManiaToolkit(Star):
@@ -377,3 +378,96 @@ class OsuManiaToolkit(Star):
     async def acc_alias(self, event: AstrMessageEvent):
         async for res in self.acc_cmd(event): 
             yield res
+
+    @filter.command("oli")
+    async def oli_cmd(self, event: AstrMessageEvent, mode: str = "normal", *args):
+        '''生成 One Last Image 特效图片
+        用法: /oli [模式(normal/diff/diff2)] [参数=值 ...]
+        说明: 支持在命令中附带图片或回复一张图片。
+        参数说明:
+        - 模式: normal (默认), diff (上下对比), diff2 (对角线对比)
+        可选参数 (示例: zoom=1.2 watermark=False):
+        zoom(浮点), cover(布尔), light(浮点), shade(布尔), kuma(布尔), watermark(布尔),
+        hajimei(布尔), convolute_name(字符: 精细/一般/稍粗...), denoise(布尔), bevel_position(整数)
+        '''
+        if mode == "help":
+            help_text = (
+                "用法: /oli [模式(normal/diff/diff2)] [参数=值 ...]\n"
+                "说明: 请在命令中附带图片或回复一张图片。\n"
+                "可选参数 (示例: zoom=1.2 watermark=False):\n"
+                "zoom(浮点), cover(布尔), light(浮点), shade(布尔), kuma(布尔), watermark(布尔),\n"
+                "hajimei(布尔), convolute_name(字符: 精细/一般/稍粗/超粗/极粗/浮雕/线稿), denoise(布尔), bevel_position(整数)"
+            )
+            yield event.plain_result(help_text)
+            return
+
+        image_url = None
+        
+        components_to_check = list(event.message_obj.message)
+        for comp in components_to_check:
+            if isinstance(comp, Reply) and comp.chain:
+                components_to_check.extend(comp.chain)
+
+        for component in components_to_check:
+            if isinstance(component, Image):
+                if hasattr(component, "url") and component.url:
+                    image_url = component.url
+                elif hasattr(component, "file") and component.file and component.file.startswith("http"):
+                    image_url = component.file
+                break
+
+        if not image_url:
+            yield event.plain_result("请在命令中附带一张图片，或回复包含图片的被引用消息")
+            return
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_url) as resp:
+                    if resp.status != 200:
+                        yield event.plain_result("图片下载失败")
+                        return
+                    img_data = await resp.read()
+        except Exception as e:
+            yield event.plain_result(f"图片下载失败: {e}")
+            return
+
+        try:
+            original_img = PILImage.open(BytesIO(img_data)).convert("RGBA")
+            
+            # 解析附加参数
+            kw = {}
+            for arg in args:
+                if "=" in arg:
+                    k, v = arg.split("=", 1)
+                    if v.lower() in ("true", "t", "1", "yes"): v = True
+                    elif v.lower() in ("false", "f", "0", "no"): v = False
+                    elif k in ('zoom', 'light'): v = float(v)
+                    elif k in ('shade_limit', 'shade_light', 'light_cut', 'dark_cut', 'bevel_position') or (k == 'seed' and v): v = int(v)
+                    kw[k] = v
+            try:
+                config = OLIConfig(**kw)
+            except Exception as e:
+                yield event.plain_result(f"参数提取或验证错误: {e}")
+                return
+
+            rendered = render_one_last_image(original_img, config)
+
+            if mode == "diff":
+                final_image = make_side_by_side_diff(rendered, original_img)
+            elif mode == "diff2":
+                final_image = make_diagonal_diff(rendered, original_img, config.bevel_position)
+            else:
+                final_image = rendered
+
+            timestamp = int(time.time() * 1000)
+            random_suffix = random.randint(1000, 9999)
+            temp_filename = f"oli_{timestamp}_{random_suffix}.png"
+            temp_output_path = self.cache_dir / temp_filename
+            
+            final_image.save(temp_output_path, format="PNG")
+            
+            yield event.chain_result([Image.fromFileSystem(str(temp_output_path.absolute()))])
+        except Exception as e:
+            yield event.plain_result(f"图片处理失败: {str(e)}")
+            return
+
