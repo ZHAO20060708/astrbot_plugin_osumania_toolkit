@@ -380,7 +380,7 @@ class OsuManiaToolkit(Star):
             yield res
 
     @filter.command("oli")
-    async def oli_cmd(self, event: AstrMessageEvent, mode: str = "normal", *args):
+    async def oli_cmd(self, event: AstrMessageEvent):
         '''生成 One Last Image 特效图片
         用法: /oli [模式(normal/diff/diff2)] [参数=值 ...]
         说明: 支持在命令中附带图片或回复一张图片。
@@ -390,6 +390,17 @@ class OsuManiaToolkit(Star):
         zoom(浮点), cover(布尔), light(浮点), shade(布尔), kuma(布尔), watermark(布尔),
         hajimei(布尔), convolute_name(字符: 精细/一般/稍粗...), denoise(布尔), invert_color(布尔), bevel_position(整数)
         '''
+        cmd_text = re.sub(r'^.*?(?:oli)(?:\s+|$)', '', event.message_str.strip(), flags=re.IGNORECASE).strip()
+        args = cmd_text.split()
+        
+        mode = "normal"
+        if args and args[0] in ["normal", "diff", "diff2", "help"]:
+            mode = args[0]
+            args = args[1:]
+        elif args and "=" not in args[0]:
+            mode = args[0]
+            args = args[1:]
+
         if mode == "help" or (mode not in ["normal", "diff", "diff2"] and not mode.startswith("help")):
             help_text = (
                 "用法: /oli [模式(normal/diff/diff2)] [参数=值 ...]\n"
