@@ -388,15 +388,21 @@ class OsuManiaToolkit(Star):
         - 模式: normal (默认), diff (上下对比), diff2 (对角线对比)
         可选参数 (示例: zoom=1.2 watermark=False):
         zoom(浮点), cover(布尔), light(浮点), shade(布尔), kuma(布尔), watermark(布尔),
-        hajimei(布尔), convolute_name(字符: 精细/一般/稍粗...), denoise(布尔), bevel_position(整数)
+        hajimei(布尔), convolute_name(字符: 精细/一般/稍粗...), denoise(布尔), invert_color(布尔), bevel_position(整数)
         '''
-        if mode == "help":
+        if mode == "help" or (mode not in ["normal", "diff", "diff2"] and not mode.startswith("help")):
             help_text = (
                 "用法: /oli [模式(normal/diff/diff2)] [参数=值 ...]\n"
-                "说明: 请在命令中附带图片或回复一张图片。\n"
-                "可选参数 (示例: zoom=1.2 watermark=False):\n"
-                "zoom(浮点), cover(布尔), light(浮点), shade(布尔), kuma(布尔), watermark(布尔),\n"
-                "hajimei(布尔), convolute_name(字符: 精细/一般/稍粗/超粗/极粗/浮雕/线稿), denoise(布尔), bevel_position(整数)"
+                "说明: 生成《Evangelion: 3.0+1.0》One Last Kiss 风格渐变海报/线稿，支持在命令中附带图片或回复一张图片。\n"
+                "参数说明:\n"
+                "- 模式: normal (默认), diff (上下对比), diff2 (对角线对比)\n"
+                "- 可选参数(格式 参数=值):\n"
+                "  zoom(缩放倍数), cover(是否居中裁剪),\n"
+                "  light(亮度补偿), shade(启用阴影), kuma(启用渐变色),\n"
+                "  watermark(开启水印), hajimei(特殊水印裁剪),\n"
+                "  convolute_name(线稿画笔粗细: 精细/一般/稍粗/超粗/极粗/浮雕/线稿),\n"
+                "  denoise(开启降噪), invert_color(反色), bevel_position(对角线截断位置, 默认20)\n"
+                "示例: /oli diff2 invert_color=True watermark=False convolute_name=稍粗"
             )
             yield event.plain_result(help_text)
             return

@@ -55,6 +55,7 @@ class Config:
     light_cut: int = 128
     dark_cut: int = 118
     denoise: bool = True
+    invert_color: bool = False
     bevel_position: int = 20
     seed: Optional[int] = None
 
@@ -325,6 +326,11 @@ def render_one_last_image(
 
     white = Image.new("RGB", layer.size, (255, 255, 255))
     white.paste(layer, mask=layer.getchannel("A"))
+    
+    if config.invert_color:
+        from PIL import ImageOps
+        white = ImageOps.invert(white)
+        
     return white
 
 
@@ -389,6 +395,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--light-cut", type=int, default=128)
     parser.add_argument("--dark-cut", type=int, default=118)
     parser.add_argument("--denoise", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--invert-color", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--bevel-position", type=int, default=20)
     parser.add_argument("--seed", type=int, default=None)
     return parser
@@ -413,6 +420,7 @@ def parse_args() -> tuple[Path, Path, Config, str]:
         light_cut=args.light_cut,
         dark_cut=args.dark_cut,
         denoise=args.denoise,
+        invert_color=args.invert_color,
         bevel_position=args.bevel_position,
         seed=args.seed,
     )
