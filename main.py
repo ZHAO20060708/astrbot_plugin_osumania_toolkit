@@ -33,7 +33,18 @@ from .algorithm.utils import parse_osu_filename, is_mc_file, resolve_meta_data
 from .algorithm.conversion import convert_mc_to_osu
 from .one_last_image import render_one_last_image, Config as OLIConfig, make_side_by_side_diff, make_diagonal_diff
 
-@register("osumania_toolkit", "ZHAO20060708", "A plugin for osu!mania tools", "1.0.1", "")
+# 导入 osu!mania 工具箱命令处理器（移植自 nonebot-plugin-osumania-toolkit）
+from .handlers.replay_viz import run_lifebar, run_spectrum, run_pressingtime
+from .handlers.delta_scatter import run_delta, run_scatter
+from .handlers.analyze import run_analyze
+from .handlers.mapview import run_mapview
+from .handlers.ett import run_ett
+from .handlers.pattern import run_pattern
+from .handlers.percy import run_percy
+from .handlers.omtk import run_omtk
+from .handlers.cvtscore import run_cvtscore
+
+@register("osumania_toolkit", "ZHAO20060708", "A plugin for osu!mania tools", "1.1.0", "")
 class OsuManiaToolkit(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -48,6 +59,16 @@ class OsuManiaToolkit(Star):
         # 启动时执行清理逻辑
         max_age = self.config.omtk_cache_max_age
         asyncio.create_task(asyncio.to_thread(cleanup_old_cache, CACHE_DIR, max_age_hours=max_age))
+
+    async def initialize(self):
+        # 确保自带的 MinaCalc 可执行文件具有执行权限（部分安装/拷贝方式会丢失）。
+        runner = self.plugin_dir / "algorithm" / "ett" / "official_minacalc_runner"
+        try:
+            if runner.exists():
+                runner.chmod(0o755)
+        except OSError as e:
+            from astrbot.api import logger
+            logger.warning(f"无法为 MinaCalc runner 添加执行权限: {e}")
 
     def add_chromatic_aberration(self, image: PILImage.Image, intensity: int = 4) -> PILImage.Image:
         intensity = max(1, min(20, intensity))
@@ -376,8 +397,82 @@ class OsuManiaToolkit(Star):
             yield res
     @filter.command("段位")
     async def acc_alias(self, event: AstrMessageEvent):
-        async for res in self.acc_cmd(event): 
+        async for res in self.acc_cmd(event):
             yield res
+
+    # ===== osu!mania 工具箱命令（移植自 nonebot-plugin-osumania-toolkit）=====
+
+    @filter.command("omtk")
+    async def omtk_cmd(self, event: AstrMessageEvent):
+        '''osu!mania 工具箱帮助。用法: /omtk [命令名] [页码]'''
+        async for r in run_omtk(self, event):
+            yield r
+
+    @filter.command("mapview", alias={"rework"})
+    async def mapview_cmd(self, event: AstrMessageEvent):
+        '''谱面键型分析与难度估计。用法: /mapview b<bid> +[mods] x[speed] OD[od]，或回复谱面/图包文件'''
+        async for r in run_mapview(self, event):
+            yield r
+
+    @filter.command("ett", alias={"msd"})
+    async def ett_cmd(self, event: AstrMessageEvent):
+        '''计算谱面 Etterna MSD。用法: /ett b<bid> x[speed]，或回复谱面/图包文件'''
+        async for r in run_ett(self, event):
+            yield r
+
+    @filter.command("pattern", alias={"键型"})
+    async def pattern_cmd(self, event: AstrMessageEvent):
+        '''谱面键型分析。回复 .osu/.mc/.osz/.mcz 文件或 /pattern b<bid>，加 -d 输出详细文本'''
+        async for r in run_pattern(self, event):
+            yield r
+
+    @filter.command("analyze", alias={"分析", "analyse"})
+    async def analyze_cmd(self, event: AstrMessageEvent):
+        '''回放作弊分析。回复 .osr/.mr 回放，可选 b<bid> 指定谱面，加 -reason 输出详情'''
+        async for r in run_analyze(self, event):
+            yield r
+
+    @filter.command("delta", alias={"偏差"})
+    async def delta_cmd(self, event: AstrMessageEvent):
+        '''判定偏差柱状图。回复 .osr/.mr 回放并使用 b<bid> 指定谱面'''
+        async for r in run_delta(self, event):
+            yield r
+
+    @filter.command("scatter", alias={"散点"})
+    async def scatter_cmd(self, event: AstrMessageEvent):
+        '''判定散点图。回复 .osr/.mr 回放并使用 b<bid> 指定谱面'''
+        async for r in run_scatter(self, event):
+            yield r
+
+    @filter.command("spectrum", alias={"频谱"})
+    async def spectrum_cmd(self, event: AstrMessageEvent):
+        '''回放打击频谱图。回复 .osr/.mr 回放'''
+        async for r in run_spectrum(self, event):
+            yield r
+
+    @filter.command("lifebar", alias={"血条", "life"})
+    async def lifebar_cmd(self, event: AstrMessageEvent):
+        '''回放血条变化图。回复 .osr 回放'''
+        async for r in run_lifebar(self, event):
+            yield r
+
+    @filter.command("pressingtime", alias={"按压"})
+    async def pressingtime_cmd(self, event: AstrMessageEvent):
+        '''回放按键时间分析。回复 .osr/.mr 回放'''
+        async for r in run_pressingtime(self, event):
+            yield r
+
+    @filter.command("percy", alias={"投皮"})
+    async def percy_cmd(self, event: AstrMessageEvent):
+        '''LN 投皮修改。回复 .png 面身图片，用法: /percy [目标程度] [lazer]'''
+        async for r in run_percy(self, event):
+            yield r
+
+    @filter.command("cvtscore", alias={"转换"})
+    async def cvtscore_cmd(self, event: AstrMessageEvent):
+        '''成绩转换。/cvtscore [bid] [目标ruleset] [-sv2]，随后按提示发送回放与谱面'''
+        async for r in run_cvtscore(self, event):
+            yield r
 
     @filter.command("oli")
     async def oli_cmd(self, event: AstrMessageEvent):
