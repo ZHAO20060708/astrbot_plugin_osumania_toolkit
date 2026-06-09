@@ -280,7 +280,7 @@ class OsuManiaToolkit(Star):
         
         if cmd_text.strip().lower() in ["help"]:
             help_text = (
-                "用法: /acc [段位名 | bid:<谱面ID>] [各曲ACC或当前累计ACC] [-s] [-r]\n"
+                "用法: /acc [段位名 | b<谱面ID>] [各曲ACC或当前累计ACC] [-sv2] [-r]\n"
                 "说明: 用于计算 osu!mania 组曲(段位)中每一首曲子需要的 ACC 或造成的 ACC 变化。\n"
                 "参数说明:\n"
                 "- 段位名: 指定预设的段位名称。内置段位命名规则如下：\n"
@@ -296,8 +296,8 @@ class OsuManiaToolkit(Star):
                 "  [senpaiex] Senpai Dan v1 Extra (如 senpaiex1)\n"
                 "  [wds0] wds0 Dan (如 wds0_1)\n"
                 "  [misc] 其他附加段位 (如 haku)\n"
-                "- bid:<谱面ID>: 指定组曲谱面ID\n"
-                "- -s: 使用 ScoreV2 计算\n"
+                "- b<谱面ID>: 指定组曲谱面ID（也支持 mania 谱面网址）\n"
+                "- -sv2: 使用 ScoreV2 计算\n"
                 "- -r: 开启反向计算（即通过各首单曲的 ACC 推算最后总体的 ACC 变化）"
             )
             yield event.plain_result(help_text)
@@ -395,7 +395,7 @@ class OsuManiaToolkit(Star):
     async def osugreek_alias(self, event: AstrMessageEvent):
         async for res in self.osugreek_cmd(event):
             yield res
-    @filter.command("段位")
+    @filter.command("单曲")
     async def acc_alias(self, event: AstrMessageEvent):
         async for res in self.acc_cmd(event):
             yield res

@@ -4,12 +4,21 @@ class Config:
     """Plugin Config Here"""
     def __init__(self):
         # =========== 常规配置 ===========
+        # 缓存文件最大保留时间（小时）
         self.omtk_cache_max_age = 24
+        # 允许的最大谱面文件大小（MB），0 表示无限制
         self.max_file_size_mb = 50
+        # 图包批量分析单次最多处理谱面数，0 表示无限制
+        self.batch_max_charts = 15
+        # .mc 转 .osu 的默认 OverallDifficulty 和 HPDrainRate
         self.default_convert_od = 8
         self.default_convert_hp = 8
-        
-        # ... (rest of the fields)
+
+        # =========== 分析常数 ===========
+        # 统计按压时长分布时，最大统计窗口（毫秒）
+        self.bin_max_time = 500
+        # 直方图桶宽（毫秒），越小越敏感但也更容易噪声抖动
+        self.bin_width = 1
         self.sim_right_cheat_threshold = 0.99
         self.sim_right_sus_threshold = 0.985
         self.sim_left_cheat_threshold = 0.4
