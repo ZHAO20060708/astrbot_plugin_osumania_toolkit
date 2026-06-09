@@ -3,6 +3,7 @@
 # AstrBot Osu!mania Toolkit
 
 ✨ **适用于 AstrBot 的 osu!mania 高级分析与实用工具插件** ✨
+PORTED BY CLAUDE OPUS 4.8
 
 </div>
 
