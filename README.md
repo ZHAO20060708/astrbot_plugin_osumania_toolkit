@@ -11,7 +11,7 @@ PORTED BY CLAUDE OPUS 4.8
 
 本插件将 [nonebot-plugin-osumania-toolkit](https://github.com/LeoBlackMT/nonebot-plugin-osumania-toolkit)
 的功能移植到 AstrBot，提供谱面分析、难度估计、回放分析、成绩转换等一站式 osu!mania 工具，
-并保留了原有的 `osugreek` 希腊字母特效与 `oli`（One Last Image）特效。
+并加入了 `osugreek` 希腊字母特效与 `oli`（One Last Image）特效。
 
 发送 `/omtk` 获取命令帮助菜单。
 
