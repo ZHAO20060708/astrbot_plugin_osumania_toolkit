@@ -1,13 +1,8 @@
-<div align="center">
-
 # AstrBot Osu!mania Toolkit
 
-✨ **适用于 AstrBot 的 osu!mania 高级分析与实用工具插件** ✨
-PORTED BY CLAUDE OPUS 4.8
+适用于 AstrBot 的 osu!mania 谱面、回放、成绩与图像处理工具箱。
 
-</div>
-
-## 📖 介绍
+## 项目简介
 
 本插件将 [nonebot-plugin-osumania-toolkit](https://github.com/LeoBlackMT/nonebot-plugin-osumania-toolkit)
 的功能移植到 AstrBot，提供谱面分析、难度估计、回放分析、成绩转换等一站式 osu!mania 工具，
@@ -15,7 +10,7 @@ PORTED BY CLAUDE OPUS 4.8
 
 发送 `/omtk` 获取命令帮助菜单。
 
-## 🧰 命令一览
+## 命令一览
 
 | 命令 | 别名 | 功能 | 输入 |
 |:----:|:----:|:----|:----|
@@ -38,11 +33,11 @@ PORTED BY CLAUDE OPUS 4.8
 > 大多数命令支持「回复一条包含文件的消息」或「直接 `b<谱面ID>` / mania 谱面网址」两种方式。
 > 文件大小与图包批量上限可在配置中调整。
 
-## ⚙️ 安装与依赖
+## 安装与依赖
 
 1. 将本插件放入 AstrBot 的 `data/plugins/` 目录。
 2. AstrBot 会根据 `requirements.txt` 自动安装 `aiohttp`、`numpy`、`scipy`、`matplotlib`、
-   `pandas`、`onnxruntime` 和 `Pillow`。首次安装会比较久，别看进度条不动就手欠重启。
+   `pandas`、`onnxruntime` 和 `Pillow`。首次安装需要下载较大的科学计算依赖，耗时通常长于普通插件。
 3. `/ett` 依赖自带的 Etterna MinaCalc 可执行文件
    `algorithm/ett/official_minacalc_runner`（Linux x86-64）。插件启动时会自动尝试为其
    添加执行权限；若 `/ett` 报权限错误，请手动执行：
@@ -53,7 +48,7 @@ PORTED BY CLAUDE OPUS 4.8
 插件配置可在 AstrBot WebUI 中直接修改。缓存位于
 `data/plugin_data/astrbot_plugin_osumania_toolkit/cache/`，更新或重装插件不会覆盖该目录。
 
-## 💡 使用提示
+## 使用提示
 
 - 合并转发：图包批量分析与多页帮助会以合并转发形式发送，目前在 OneBot（aiocqhttp）
   平台体验最佳；其它平台会退化为多条消息发送。
@@ -62,7 +57,7 @@ PORTED BY CLAUDE OPUS 4.8
   将 `.ruleset` 放入 `rulesets/` 目录。
 - 分析结果由算法生成，仅供参考。
 
-## ⚙️ 配置说明（节选）
+## 配置说明（节选）
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |:-----:|:----:|:----:|:----|
@@ -74,7 +69,7 @@ PORTED BY CLAUDE OPUS 4.8
 
 > 键型分析与作弊分析还有大量可调参数，详见 `config.py` 中的注释。
 
-## 🤝 致谢
+## 致谢
 
 - osu!mania 工具核心移植自 [LeoBlackMT/nonebot-plugin-osumania-toolkit](https://github.com/LeoBlackMT/nonebot-plugin-osumania-toolkit)
   （难度/键型/MSD/成绩转换等算法详见其 README 的「参考内容」）。
