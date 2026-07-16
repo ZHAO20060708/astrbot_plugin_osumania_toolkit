@@ -1,0 +1,30 @@
+{
+  "omtk_cache_max_age": {
+    "type": "int",
+    "description": "缓存文件最大保留时间（小时）",
+    "hint": "设置为 0 会在下一次清理时删除所有已完成写入的缓存。",
+    "default": 24
+  },
+  "max_file_size_mb": {
+    "type": "int",
+    "description": "允许处理的单个文件大小上限（MB）",
+    "hint": "设置为 0 表示不限制。",
+    "default": 50
+  },
+  "batch_max_charts": {
+    "type": "int",
+    "description": "图包批量分析的谱面数量上限",
+    "hint": "设置为 0 表示不限制。图包分析很吃 CPU，别一激动把机器烤熟。",
+    "default": 15
+  },
+  "default_convert_od": {
+    "type": "int",
+    "description": ".mc 转 .osu 时使用的默认 OverallDifficulty",
+    "default": 8
+  },
+  "default_convert_hp": {
+    "type": "int",
+    "description": ".mc 转 .osu 时使用的默认 HPDrainRate",
+    "default": 8
+  }
+}

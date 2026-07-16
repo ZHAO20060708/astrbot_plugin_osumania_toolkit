@@ -1,7 +1,10 @@
+from collections.abc import Mapping
 from typing import Any
+
 
 class Config:
     """Plugin Config Here"""
+
     def __init__(self):
         # =========== 常规配置 ===========
         # 缓存文件最大保留时间（小时）
@@ -103,36 +106,124 @@ class Config:
 
         self.subtype_rating_multiplier_by_mode = {
             "RC": {
-                "Rolls": 1.0 / 3.0, "Trills": 1.0 / 3.0, "Minitrills": 1.0 / 3.0,
-                "Handstream": 0.65, "Split Trill": 0.65, "Jumptrill": 0.65, "Jumpstream": 0.65,
-                "Brackets": 0.65, "Double Stream": 0.65, "Dense Chordstream": 0.65, "Light Chordstream": 0.65, "Chord Rolls": 0.65,
-                "Longjacks": 0.9, "Quadstream": 0.9, "Gluts": 0.9, "Chordjacks": 0.9, "Minijacks": 0.9,
-                "Column Lock": 1.5, "Release": 0.73, "Shield": 0.8, "JS Density": 1.0, "HS Density": 1.0,
-                "DS Density": 1.0, "LCS Density": 1.0, "DCS Density": 1.0, "Inverse": 1.3, "Jacky WC": 0.55, "Speedy WC": 0.8,
+                "Rolls": 1.0 / 3.0,
+                "Trills": 1.0 / 3.0,
+                "Minitrills": 1.0 / 3.0,
+                "Handstream": 0.65,
+                "Split Trill": 0.65,
+                "Jumptrill": 0.65,
+                "Jumpstream": 0.65,
+                "Brackets": 0.65,
+                "Double Stream": 0.65,
+                "Dense Chordstream": 0.65,
+                "Light Chordstream": 0.65,
+                "Chord Rolls": 0.65,
+                "Longjacks": 0.9,
+                "Quadstream": 0.9,
+                "Gluts": 0.9,
+                "Chordjacks": 0.9,
+                "Minijacks": 0.9,
+                "Column Lock": 1.5,
+                "Release": 0.73,
+                "Shield": 0.8,
+                "JS Density": 1.0,
+                "HS Density": 1.0,
+                "DS Density": 1.0,
+                "LCS Density": 1.0,
+                "DCS Density": 1.0,
+                "Inverse": 1.3,
+                "Jacky WC": 0.55,
+                "Speedy WC": 0.8,
             },
             "LN": {
-                "Rolls": 1.0 / 3.0, "Trills": 1.0 / 3.0, "Minitrills": 1.0 / 3.0,
-                "Handstream": 0.65, "Split Trill": 0.65, "Jumptrill": 0.65, "Jumpstream": 0.65,
-                "Brackets": 0.65, "Double Stream": 0.65, "Dense Chordstream": 0.65, "Light Chordstream": 0.65, "Chord Rolls": 0.65,
-                "Longjacks": 0.9, "Quadstream": 0.9, "Gluts": 0.9, "Chordjacks": 0.9, "Minijacks": 0.9,
-                "Column Lock": 1.5, "Release": 1.0, "Shield": 0.8, "JS Density": 0.9, "HS Density": 0.9,
-                "DS Density": 0.9, "LCS Density": 0.9, "DCS Density": 0.9, "Inverse": 1.5, "Jacky WC": 0.55, "Speedy WC": 0.8,
+                "Rolls": 1.0 / 3.0,
+                "Trills": 1.0 / 3.0,
+                "Minitrills": 1.0 / 3.0,
+                "Handstream": 0.65,
+                "Split Trill": 0.65,
+                "Jumptrill": 0.65,
+                "Jumpstream": 0.65,
+                "Brackets": 0.65,
+                "Double Stream": 0.65,
+                "Dense Chordstream": 0.65,
+                "Light Chordstream": 0.65,
+                "Chord Rolls": 0.65,
+                "Longjacks": 0.9,
+                "Quadstream": 0.9,
+                "Gluts": 0.9,
+                "Chordjacks": 0.9,
+                "Minijacks": 0.9,
+                "Column Lock": 1.5,
+                "Release": 1.0,
+                "Shield": 0.8,
+                "JS Density": 0.9,
+                "HS Density": 0.9,
+                "DS Density": 0.9,
+                "LCS Density": 0.9,
+                "DCS Density": 0.9,
+                "Inverse": 1.5,
+                "Jacky WC": 0.55,
+                "Speedy WC": 0.8,
             },
             "HB": {
-                "Rolls": 1.0 / 3.0, "Trills": 1.0 / 3.0, "Minitrills": 1.0 / 3.0,
-                "Handstream": 0.65, "Split Trill": 0.65, "Jumptrill": 0.65, "Jumpstream": 0.65,
-                "Brackets": 0.65, "Double Stream": 0.65, "Dense Chordstream": 0.65, "Light Chordstream": 0.65, "Chord Rolls": 0.65,
-                "Longjacks": 0.9, "Quadstream": 0.9, "Gluts": 0.9, "Chordjacks": 0.9, "Minijacks": 0.9,
-                "Column Lock": 1.5, "Release": 0.3, "Shield": 0.8, "JS Density": 0.9, "HS Density": 0.9,
-                "DS Density": 0.9, "LCS Density": 0.9, "DCS Density": 0.9, "Inverse": 0.0, "Jacky WC": 0.65, "Speedy WC": 0.45,
+                "Rolls": 1.0 / 3.0,
+                "Trills": 1.0 / 3.0,
+                "Minitrills": 1.0 / 3.0,
+                "Handstream": 0.65,
+                "Split Trill": 0.65,
+                "Jumptrill": 0.65,
+                "Jumpstream": 0.65,
+                "Brackets": 0.65,
+                "Double Stream": 0.65,
+                "Dense Chordstream": 0.65,
+                "Light Chordstream": 0.65,
+                "Chord Rolls": 0.65,
+                "Longjacks": 0.9,
+                "Quadstream": 0.9,
+                "Gluts": 0.9,
+                "Chordjacks": 0.9,
+                "Minijacks": 0.9,
+                "Column Lock": 1.5,
+                "Release": 0.3,
+                "Shield": 0.8,
+                "JS Density": 0.9,
+                "HS Density": 0.9,
+                "DS Density": 0.9,
+                "LCS Density": 0.9,
+                "DCS Density": 0.9,
+                "Inverse": 0.0,
+                "Jacky WC": 0.65,
+                "Speedy WC": 0.45,
             },
             "Mix": {
-                "Rolls": 1.0 / 3.0, "Trills": 1.0 / 3.0, "Minitrills": 1.0 / 3.0,
-                "Handstream": 0.65, "Split Trill": 0.65, "Jumptrill": 0.65, "Jumpstream": 0.65,
-                "Brackets": 0.65, "Double Stream": 0.65, "Dense Chordstream": 0.65, "Light Chordstream": 0.65, "Chord Rolls": 0.65,
-                "Longjacks": 0.9, "Quadstream": 0.9, "Gluts": 0.9, "Chordjacks": 0.9, "Minijacks": 0.9,
-                "Column Lock": 1.5, "Release": 0.3, "Shield": 0.8, "JS Density": 0.9, "HS Density": 0.9,
-                "DS Density": 0.9, "LCS Density": 0.9, "DCS Density": 0.9, "Inverse": 0.0, "Jacky WC": 0.45, "Speedy WC": 0.45,
+                "Rolls": 1.0 / 3.0,
+                "Trills": 1.0 / 3.0,
+                "Minitrills": 1.0 / 3.0,
+                "Handstream": 0.65,
+                "Split Trill": 0.65,
+                "Jumptrill": 0.65,
+                "Jumpstream": 0.65,
+                "Brackets": 0.65,
+                "Double Stream": 0.65,
+                "Dense Chordstream": 0.65,
+                "Light Chordstream": 0.65,
+                "Chord Rolls": 0.65,
+                "Longjacks": 0.9,
+                "Quadstream": 0.9,
+                "Gluts": 0.9,
+                "Chordjacks": 0.9,
+                "Minijacks": 0.9,
+                "Column Lock": 1.5,
+                "Release": 0.3,
+                "Shield": 0.8,
+                "JS Density": 0.9,
+                "HS Density": 0.9,
+                "DS Density": 0.9,
+                "LCS Density": 0.9,
+                "DCS Density": 0.9,
+                "Inverse": 0.0,
+                "Jacky WC": 0.45,
+                "Speedy WC": 0.45,
             },
         }
 
@@ -154,7 +245,14 @@ class Config:
         self.cluster_specific_name_min_ratio = 0.0
         self.enable_multi_label_same_window = True
         self.coordination_specific_order = ["Column Lock", "Shield", "Release"]
-        self.density_specific_order = ["Inverse", "JS Density", "HS Density", "DS Density", "DCS Density", "LCS Density"]
+        self.density_specific_order = [
+            "Inverse",
+            "JS Density",
+            "HS Density",
+            "DS Density",
+            "DCS Density",
+            "LCS Density",
+        ]
         self.wildcard_specific_order = ["Speedy WC", "Jacky WC"]
         self.jacks_min_bpm = 90.0
         self.shield_max_beat_ratio = 0.25
@@ -167,14 +265,32 @@ class Config:
         self.jacky_context_window = 6
         self.jacky_fallback_max_mspb = 185.0
 
+
 # 全局配置实例
 _config_instance = Config()
 
+
+def apply_plugin_config(values: Mapping[str, Any] | None) -> Config:
+    """Apply AstrBot's injected plugin config to the shared runtime config.
+
+    The ported algorithm modules keep a reference to the singleton returned by
+    :func:`get_plugin_config`, so mutating it here updates every consumer without
+    introducing process-wide replacement races.
+    """
+    if values:
+        for key, value in values.items():
+            if hasattr(_config_instance, key):
+                setattr(_config_instance, key, value)
+    return _config_instance
+
+
 def get_plugin_config(config_class=None):
     return _config_instance
+
 
 def get_driver():
     class MockDriver:
         def on_startup(self, func):
             return func
+
     return MockDriver()

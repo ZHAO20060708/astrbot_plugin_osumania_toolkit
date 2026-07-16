@@ -1,6 +1,7 @@
 # osu!mania toolkit plugin dependencies.
-# Pillow/aiohttp ship with AstrBot; the rest are needed by the analysis/render
-# subsystems. AstrBot auto-installs this file when the plugin is loaded.
+# AstrBot auto-installs these analysis, rendering, and network dependencies
+# when the plugin is loaded.
+aiohttp>=3.9.0
 numpy>=1.26.0
 scipy>=1.7.0
 matplotlib>=3.5.0

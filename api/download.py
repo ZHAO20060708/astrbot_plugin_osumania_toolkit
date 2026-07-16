@@ -1,22 +1,27 @@
 import asyncio
-import aiohttp
 import shutil
+from pathlib import Path
+from typing import Any
+from urllib.parse import unquote
+
+import aiohttp
 
 from astrbot.api import logger
-from ..config import get_plugin_config
-from pathlib import Path
-from urllib.parse import unquote
-from typing import Optional, Tuple, Any
 
-from ..config import Config
+from ..config import Config, get_plugin_config
+from ..file.cleanup import _is_safe_cleanup_target, cleanup_temp_file
 from ..file.path import _get_local_path_from_str
-from ..file.cleanup import cleanup_temp_file, _is_safe_cleanup_target
+
 config = get_plugin_config(Config)
 
-# 文件大小限制
-MAX_FILE_SIZE = config.max_file_size_mb * 1024 * 1024 if config.max_file_size_mb > 0 else 9999999999  # 根据配置设置
 
-async def get_file_url(bot: Any, file_seg: Any) -> Optional[Tuple[str, str]]:
+def _max_file_size() -> int | None:
+    if config.max_file_size_mb <= 0:
+        return None
+    return config.max_file_size_mb * 1024 * 1024
+
+
+async def get_file_url(bot: Any, file_seg: Any) -> tuple[str, str] | None:
     """
     从文件消息段中提取文件名和 URL，支持多种 OneBot 实现
 
@@ -52,7 +57,9 @@ async def get_file_url(bot: Any, file_seg: Any) -> Optional[Tuple[str, str]]:
         if not file_url:
             # 方法1: 检查 file 字段是否已经是 URL
             file_field = file_data.get("file", "")
-            if file_field and (file_field.startswith("http://") or file_field.startswith("https://")):
+            if file_field and (
+                file_field.startswith("http://") or file_field.startswith("https://")
+            ):
                 file_url = file_field
                 logger.info(f"从 file 字段获取到 URL: {file_url}")
 
@@ -66,7 +73,9 @@ async def get_file_url(bot: Any, file_seg: Any) -> Optional[Tuple[str, str]]:
                     if http_url:
                         file_url = http_url
                         local_path = _get_local_path_from_str(local_file_str)
-                        if local_path is not None and _is_safe_cleanup_target(local_path):
+                        if local_path is not None and _is_safe_cleanup_target(
+                            local_path
+                        ):
                             asyncio.create_task(cleanup_temp_file(local_path))
                     elif local_file_str:
                         file_url = local_file_str
@@ -98,6 +107,7 @@ async def download_file(url: str, save_path: Path) -> bool:
     返回:
         成功返回 True，失败返回 False
     """
+    max_file_size = _max_file_size()
     try:
         # 检测是否是本地文件路径
         # Windows 路径: C:\..., D:\..., \\server\...
@@ -106,24 +116,24 @@ async def download_file(url: str, save_path: Path) -> bool:
         local_file_path = None
 
         # 检查是否是 Windows 绝对路径 (C:\, D:\, etc.)
-        if len(url) > 2 and url[1] == ':' and url[2] in ('\\', '/'):
+        if len(url) > 2 and url[1] == ":" and url[2] in ("\\", "/"):
             is_local_path = True
             local_file_path = Path(url)
         # 检查是否是 UNC 路径 (\\server\share)
-        elif url.startswith('\\\\'):
+        elif url.startswith("\\\\"):
             is_local_path = True
             local_file_path = Path(url)
         # 检查是否是 Unix 绝对路径
-        elif url.startswith('/') or url.startswith('~/'):
+        elif url.startswith("/") or url.startswith("~/"):
             is_local_path = True
             local_file_path = Path(url).expanduser()
         # 检查是否是 file:// URI
-        elif url.startswith('file://'):
+        elif url.startswith("file://"):
             is_local_path = True
             # 移除 file:// 前缀，解码 URL 编码，并转换为路径
             path_str = unquote(url[7:])  # 移除 'file://' 并解码 %xx
             # Windows: file:///C:/... -> /C:/... -> C:/...
-            if len(path_str) > 2 and path_str[0] == '/' and path_str[2] == ':':
+            if len(path_str) > 2 and path_str[0] == "/" and path_str[2] == ":":
                 path_str = path_str[1:]
             local_file_path = Path(path_str)
 
@@ -132,11 +142,13 @@ async def download_file(url: str, save_path: Path) -> bool:
             if not local_file_path.exists():
                 logger.error(f"本地文件不存在：{local_file_path}")
                 return False
-            
+
             # 检查文件大小
             file_size = local_file_path.stat().st_size
-            if file_size > MAX_FILE_SIZE:
-                logger.warning(f"文件过大（{file_size / 1024 / 1024:.2f}MB）超过限制（{config.max_file_size_mb}MB）：{local_file_path}")
+            if max_file_size is not None and file_size > max_file_size:
+                logger.warning(
+                    f"文件过大（{file_size / 1024 / 1024:.2f}MB）超过限制（{config.max_file_size_mb}MB）：{local_file_path}"
+                )
                 return False
 
             logger.info(f"从本地路径复制文件：{local_file_path} -> {save_path}")
@@ -150,18 +162,22 @@ async def download_file(url: str, save_path: Path) -> bool:
                 async with session.get(url) as resp:
                     if resp.status == 200:
                         # 检查 Content-Length 头，提前拦截超大文件
-                        content_length = resp.headers.get('Content-Length')
+                        content_length = resp.headers.get("Content-Length")
                         if content_length:
                             try:
                                 size = int(content_length)
-                                if size > MAX_FILE_SIZE:
-                                    logger.warning(f"文件过大（{size / 1024 / 1024:.2f}MB）超过限制（{config.max_file_size_mb}MB）：{url}")
+                                if max_file_size is not None and size > max_file_size:
+                                    logger.warning(
+                                        f"文件过大（{size / 1024 / 1024:.2f}MB）超过限制（{config.max_file_size_mb}MB）：{url}"
+                                    )
                                     return False
                             except ValueError:
                                 pass
                         content = await resp.read()
-                        if len(content) > MAX_FILE_SIZE:
-                            logger.warning(f"下载中发现文件超过限制（{config.max_file_size_mb}MB），中止下载：{url}")
+                        if max_file_size is not None and len(content) > max_file_size:
+                            logger.warning(
+                                f"下载中发现文件超过限制（{config.max_file_size_mb}MB），中止下载：{url}"
+                            )
                             save_path.unlink(missing_ok=True)
                             return False
 

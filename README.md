@@ -41,14 +41,17 @@ PORTED BY CLAUDE OPUS 4.8
 ## ⚙️ 安装与依赖
 
 1. 将本插件放入 AstrBot 的 `data/plugins/` 目录。
-2. 安装 Python 依赖（见 `requirements.txt`）：`numpy`、`scipy`、`matplotlib`、`Pillow`
-   （`Pillow`/`aiohttp` 通常随 AstrBot 提供）。
+2. AstrBot 会根据 `requirements.txt` 自动安装 `aiohttp`、`numpy`、`scipy`、`matplotlib`、
+   `pandas`、`onnxruntime` 和 `Pillow`。首次安装会比较久，别看进度条不动就手欠重启。
 3. `/ett` 依赖自带的 Etterna MinaCalc 可执行文件
    `algorithm/ett/official_minacalc_runner`（Linux x86-64）。插件启动时会自动尝试为其
    添加执行权限；若 `/ett` 报权限错误，请手动执行：
    `chmod +x algorithm/ett/official_minacalc_runner`。
 4. 卡片类命令（`/mapview` `/ett` `/pattern` `/cvtscore`）通过 AstrBot 的 HTML 渲染器
    生成图片，请确保 AstrBot 的文转图 / HTML 渲染功能可用。
+
+插件配置可在 AstrBot WebUI 中直接修改。缓存位于
+`data/plugin_data/astrbot_plugin_osumania_toolkit/cache/`，更新或重装插件不会覆盖该目录。
 
 ## 💡 使用提示
 
