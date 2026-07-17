@@ -229,7 +229,7 @@ class OsuManiaToolkit(Star):
             yield event.plain_result(help_text)
             return
 
-        image_url = None
+        image_component = None
 
         components_to_check = list(event.message_obj.message)
         for comp in components_to_check:
@@ -238,29 +238,21 @@ class OsuManiaToolkit(Star):
 
         for component in components_to_check:
             if isinstance(component, Image):
-                if hasattr(component, "url") and component.url:
-                    image_url = component.url
-                elif (
-                    hasattr(component, "file")
-                    and component.file
-                    and component.file.startswith("http")
-                ):
-                    image_url = component.file
+                image_component = component
                 break
 
-        if not image_url:
+        if not image_component:
             yield event.plain_result(
                 "请在命令中附带一张图片，或回复包含图片的被引用消息"
             )
             return
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(image_url) as resp:
-                    if resp.status != 200:
-                        yield event.plain_result("图片下载失败")
-                        return
-                    img_data = await resp.read()
+            local_path = await image_component.convert_to_file_path()
+            if not local_path:
+                yield event.plain_result("图片下载失败: 无法获取图片路径")
+                return
+            img_data = Path(local_path).read_bytes()
         except Exception as e:
             yield event.plain_result(f"图片下载失败: {e}")
             return
@@ -635,7 +627,7 @@ class OsuManiaToolkit(Star):
             yield event.plain_result(help_text)
             return
 
-        image_url = None
+        image_component = None
 
         components_to_check = list(event.message_obj.message)
         for comp in components_to_check:
@@ -644,29 +636,21 @@ class OsuManiaToolkit(Star):
 
         for component in components_to_check:
             if isinstance(component, Image):
-                if hasattr(component, "url") and component.url:
-                    image_url = component.url
-                elif (
-                    hasattr(component, "file")
-                    and component.file
-                    and component.file.startswith("http")
-                ):
-                    image_url = component.file
+                image_component = component
                 break
 
-        if not image_url:
+        if not image_component:
             yield event.plain_result(
                 "请在命令中附带一张图片，或回复包含图片的被引用消息"
             )
             return
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(image_url) as resp:
-                    if resp.status != 200:
-                        yield event.plain_result("图片下载失败")
-                        return
-                    img_data = await resp.read()
+            local_path = await image_component.convert_to_file_path()
+            if not local_path:
+                yield event.plain_result("图片下载失败: 无法获取图片路径")
+                return
+            img_data = Path(local_path).read_bytes()
         except Exception as e:
             yield event.plain_result(f"图片下载失败: {e}")
             return
