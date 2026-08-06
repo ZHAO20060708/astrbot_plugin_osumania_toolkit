@@ -17,6 +17,31 @@ class Config:
         self.default_convert_od = 8
         self.default_convert_hp = 8
 
+        # =========== ManiaMapAnalyser browser renderer ==========
+        self.max_concurrency = 5
+        self.render_timeout_seconds = 120
+        self.capture_target = "full_card"
+        self.content_bar = "Auto"
+        self.sr_text = "ReworkSR"
+        self.diff_text = "Difficulty"
+        self.estimator_algorithm = "Mixed"
+        self.etterna_version = "0.72.3"
+        self.companella_etterna_version = "0.74.0"
+        self.enable_numeric_difficulty = True
+        self.enable_etterna_rainbow_bars = False
+        self.show_mode_tag_capsule = True
+        self.vibro_detection = True
+        self.debug_use_amount = False
+        self.debug_use_sv_detection = True
+        self.azusa_sunny_reference_ho = True
+        self.card_opacity = "95%"
+        self.card_blur = "4px"
+        self.card_radius = "Medium"
+        self.enable_cover_art = True
+        self.enable_floating_triangles = True
+        self.custom_background_color = "#000000"
+        self.use_osu_font = True
+
         # =========== 分析常数 ===========
         # 统计按压时长分布时，最大统计窗口（毫秒）
         self.bin_max_time = 500

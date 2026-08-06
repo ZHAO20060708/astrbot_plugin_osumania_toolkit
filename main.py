@@ -1,4 +1,5 @@
 import asyncio
+import math
 import random
 import re
 import time
@@ -36,9 +37,12 @@ from .handlers.cvtscore import run_cvtscore
 from .handlers.delta_scatter import run_delta, run_scatter
 from .handlers.ett import run_ett
 from .handlers.mapview import run_mapview
+from .handlers.mania_map import run_mania_map
 from .handlers.omtk import run_omtk
 from .handlers.pattern import run_pattern
 from .handlers.percy import run_percy
+from .astrbot_service.dependency_bootstrap import bootstrap_plugin_runtime
+from .astrbot_service.service_mania_map_analyser import ManiaMapAnalyserService
 
 # 导入 osu!mania 工具箱命令处理器（移植自 nonebot-plugin-osumania-toolkit）
 from .handlers.replay_viz import run_lifebar, run_pressingtime, run_spectrum
@@ -52,6 +56,35 @@ from .one_last_image import (
 )
 
 
+def _coerce_int(value: object, fallback: int) -> int:
+    try:
+        if isinstance(value, bool):
+            return int(value)
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _coerce_float(
+    value: object,
+    fallback: float,
+    *,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float:
+    try:
+        parsed = float(str(value).strip())
+    except (TypeError, ValueError):
+        return fallback
+    if not math.isfinite(parsed):
+        return fallback
+    if minimum is not None and parsed < minimum:
+        return fallback
+    if maximum is not None and parsed > maximum:
+        return fallback
+    return parsed
+
+
 class OsuManiaToolkit(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -59,6 +92,17 @@ class OsuManiaToolkit(Star):
         self.image_dir = self.plugin_dir / "images"
         self.cache_dir = CACHE_DIR
         self.config = apply_plugin_config(config)
+        self.render_service: ManiaMapAnalyserService | None = None
+        self.render_startup_error = ""
+        self.render_semaphore = asyncio.Semaphore(
+            max(1, min(_coerce_int(self.config.max_concurrency, 5), 5))
+        )
+        self.render_timeout_seconds = _coerce_float(
+            self.config.render_timeout_seconds,
+            120.0,
+            minimum=5.0,
+            maximum=900.0,
+        )
 
         # 启动时执行清理逻辑
         max_age = self.config.omtk_cache_max_age
@@ -74,6 +118,47 @@ class OsuManiaToolkit(Star):
                 runner.chmod(0o755)
         except OSError as e:
             logger.warning(f"无法为 MinaCalc runner 添加执行权限: {e}")
+
+        try:
+            await asyncio.to_thread(self._initialize_map_renderer)
+        except Exception as e:
+            self.render_startup_error = str(e)
+            logger.exception("ManiaMapAnalyser renderer initialization failed")
+
+    def _initialize_map_renderer(self) -> None:
+        bootstrap_plugin_runtime(self.plugin_dir, CACHE_DIR.parent)
+        self.render_service = ManiaMapAnalyserService(
+            plugin_root=self.plugin_dir,
+            plugin_data_path=CACHE_DIR.parent,
+            render_config={
+                "capture_target": self.config.capture_target,
+                "content_bar": self.config.content_bar,
+                "sr_text": self.config.sr_text,
+                "diff_text": self.config.diff_text,
+                "estimator_algorithm": self.config.estimator_algorithm,
+                "etterna_version": self.config.etterna_version,
+                "companella_etterna_version": self.config.companella_etterna_version,
+                "enable_numeric_difficulty": self.config.enable_numeric_difficulty,
+                "enable_etterna_rainbow_bars": self.config.enable_etterna_rainbow_bars,
+                "show_mode_tag_capsule": self.config.show_mode_tag_capsule,
+                "vibro_detection": self.config.vibro_detection,
+                "debug_use_amount": self.config.debug_use_amount,
+                "debug_use_sv_detection": self.config.debug_use_sv_detection,
+                "azusa_sunny_reference_ho": self.config.azusa_sunny_reference_ho,
+                "card_opacity": self.config.card_opacity,
+                "card_blur": self.config.card_blur,
+                "card_radius": self.config.card_radius,
+                "enable_cover_art": self.config.enable_cover_art,
+                "enable_floating_triangles": self.config.enable_floating_triangles,
+                "custom_background_color": self.config.custom_background_color,
+                "use_osu_font": self.config.use_osu_font,
+            },
+        )
+
+    async def terminate(self):
+        if self.render_service is not None:
+            await asyncio.to_thread(self.render_service.close)
+            self.render_service = None
 
     def add_chromatic_aberration(
         self, image: PILImage.Image, intensity: int = 4
@@ -518,9 +603,15 @@ class OsuManiaToolkit(Star):
         async for r in run_omtk(self, event):
             yield r
 
+    @filter.command("ma", alias={"mag"})
+    async def mania_map_cmd(self, event: AstrMessageEvent):
+        """新谱面分析卡片。用法: /ma [模式] <bid> [+dt/+ht/+in/+ho]。"""
+        async for r in run_mania_map(self, event):
+            yield r
+
     @filter.command("mapview", alias={"rework"})
     async def mapview_cmd(self, event: AstrMessageEvent):
-        """谱面键型分析与难度估计。用法: /mapview b<bid> +[mods] x[speed] OD[od]，或回复谱面/图包文件"""
+        """谱面键型分析与难度估计。BID 和单图使用新前端；图包保留批量分析。"""
         async for r in run_mapview(self, event):
             yield r
 

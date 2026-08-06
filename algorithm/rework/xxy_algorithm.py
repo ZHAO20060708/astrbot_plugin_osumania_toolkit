@@ -3,6 +3,7 @@
 为适配功能做了一些改动，并应用了向量化优化。
 '''
 from ...parser.osu_file_parser import osu_file
+from ..estimator.exceptions import ParseError
 from collections import defaultdict
 import numpy as np
 import pandas as pd
@@ -168,6 +169,8 @@ def preprocess_file(file_path, speed_rate, od_flag, cvt_flag):
     LN_seq_by_column = sorted(list(LN_dict.values()), key=lambda lst: lst[0][0])
 
     K = p[0]
+    if not note_seq:
+        raise ParseError("谱面中没有有效的音符（HitObjects 为空或格式损坏）")
     T = max( max(n[1] for n in note_seq),
              max(n[2] for n in note_seq)) + 1
 

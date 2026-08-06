@@ -26,5 +26,132 @@
     "type": "int",
     "description": ".mc 转 .osu 时使用的默认 HPDrainRate",
     "default": 8
+  },
+  "max_concurrency": {
+    "type": "int",
+    "description": "谱面卡片任务并发上限",
+    "hint": "Chromium 会复用一个常驻实例，超过 5 会自动按 5 处理。",
+    "default": 5
+  },
+  "render_timeout_seconds": {
+    "type": "int",
+    "description": "单个谱面卡片渲染超时（秒）",
+    "hint": "包含下载谱面、封面主题和截图。",
+    "default": 120
+  },
+  "capture_target": {
+    "type": "string",
+    "description": "截图目标",
+    "hint": "full_card 输出完整卡片；graph_only 仅输出难度图。",
+    "default": "full_card"
+  },
+  "content_bar": {
+    "type": "string",
+    "description": "新谱面卡片主体内容",
+    "hint": "可选 None、Auto、Pattern、Etterna、Graph、Full；/ma 的 -n/-a/-p/-e/-g 可单次覆盖。",
+    "default": "Auto"
+  },
+  "sr_text": {
+    "type": "string",
+    "description": "卡片主难度文本",
+    "hint": "可选 ReworkSR、MSD、Pattern、InterludeSR、Auto。",
+    "default": "ReworkSR"
+  },
+  "diff_text": {
+    "type": "string",
+    "description": "卡片副难度文本",
+    "hint": "可选 Difficulty、Graph、MSD、Pattern、ReworkSR、InterludeSR、None。",
+    "default": "Difficulty"
+  },
+  "estimator_algorithm": {
+    "type": "string",
+    "description": "难度估算算法",
+    "hint": "可选 Azusa、Roxy、Mixed、Sunny、Daniel、Companella。",
+    "default": "Mixed"
+  },
+  "etterna_version": {
+    "type": "string",
+    "description": "Etterna 版本",
+    "default": "0.72.3"
+  },
+  "companella_etterna_version": {
+    "type": "string",
+    "description": "Companella 使用的 Etterna 版本",
+    "default": "0.74.0"
+  },
+  "enable_numeric_difficulty": {
+    "type": "bool",
+    "description": "显示数值化难度",
+    "default": true
+  },
+  "enable_etterna_rainbow_bars": {
+    "type": "bool",
+    "description": "启用 Etterna 彩虹条",
+    "default": false
+  },
+  "show_mode_tag_capsule": {
+    "type": "bool",
+    "description": "显示 HB/RC/LN/Mix/SV 模式标签",
+    "default": true
+  },
+  "vibro_detection": {
+    "type": "bool",
+    "description": "启用 Vibro 检测",
+    "default": true
+  },
+  "debug_use_amount": {
+    "type": "bool",
+    "description": "使用分类数量调试逻辑",
+    "default": false
+  },
+  "debug_use_sv_detection": {
+    "type": "bool",
+    "description": "启用 SV 检测",
+    "default": true
+  },
+  "azusa_sunny_reference_ho": {
+    "type": "bool",
+    "description": "Azusa Sunny 使用 HO 参考",
+    "default": true
+  },
+  "card_opacity": {
+    "type": "string",
+    "description": "新谱面卡片透明度",
+    "hint": "可选 100%、95%、90%、80%、70%。",
+    "default": "95%"
+  },
+  "card_blur": {
+    "type": "string",
+    "description": "新谱面卡片背景模糊",
+    "hint": "可选 Off、4px、8px、12px、16px、20px。",
+    "default": "4px"
+  },
+  "card_radius": {
+    "type": "string",
+    "description": "新谱面卡片圆角",
+    "hint": "可选 Small、Medium、Large。",
+    "default": "Medium"
+  },
+  "enable_cover_art": {
+    "type": "bool",
+    "description": "使用谱面封面主题",
+    "hint": "关闭后跳过封面下载，适合只想要纯色卡片的部署。",
+    "default": true
+  },
+  "enable_floating_triangles": {
+    "type": "bool",
+    "description": "显示 osu! 三角纹背景",
+    "default": true
+  },
+  "custom_background_color": {
+    "type": "string",
+    "description": "自定义卡片主题色",
+    "hint": "使用 #RRGGBB；#000000 表示跟随封面主题。",
+    "default": "#000000"
+  },
+  "use_osu_font": {
+    "type": "bool",
+    "description": "使用 osu! 字体",
+    "default": true
   }
 }

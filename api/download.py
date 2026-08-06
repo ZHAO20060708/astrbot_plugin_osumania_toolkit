@@ -96,7 +96,7 @@ async def get_file_url(bot: Any, file_seg: Any) -> tuple[str, str] | None:
         return None
 
 
-async def download_file(url: str, save_path: Path) -> bool:
+async def download_file(url: str, save_path: Path) -> None:
     """
     下载文件或复制本地文件到指定路径
 
@@ -104,8 +104,8 @@ async def download_file(url: str, save_path: Path) -> bool:
         url: HTTP URL 或本地文件路径
         save_path: 保存路径
 
-    返回:
-        成功返回 True，失败返回 False
+    异常:
+        下载或复制失败时抛出异常，调用方可以把具体原因反馈给用户。
     """
     max_file_size = _max_file_size()
     try:
@@ -140,22 +140,20 @@ async def download_file(url: str, save_path: Path) -> bool:
         if is_local_path and local_file_path:
             # 本地文件复制
             if not local_file_path.exists():
-                logger.error(f"本地文件不存在：{local_file_path}")
-                return False
+                raise RuntimeError(f"本地文件不存在：{local_file_path}")
 
             # 检查文件大小
             file_size = local_file_path.stat().st_size
             if max_file_size is not None and file_size > max_file_size:
-                logger.warning(
-                    f"文件过大（{file_size / 1024 / 1024:.2f}MB）超过限制（{config.max_file_size_mb}MB）：{local_file_path}"
+                raise RuntimeError(
+                    f"文件过大（{file_size / 1024 / 1024:.2f}MB）超过限制（{config.max_file_size_mb}MB）"
                 )
-                return False
 
             logger.info(f"从本地路径复制文件：{local_file_path} -> {save_path}")
             await asyncio.to_thread(shutil.copy2, local_file_path, save_path)
             if _is_safe_cleanup_target(local_file_path):
                 asyncio.create_task(cleanup_temp_file(local_file_path, delay=30.0))
-            return True
+            return
         else:
             # HTTP/HTTPS 下载
             async with aiohttp.ClientSession() as session:
@@ -167,25 +165,24 @@ async def download_file(url: str, save_path: Path) -> bool:
                             try:
                                 size = int(content_length)
                                 if max_file_size is not None and size > max_file_size:
-                                    logger.warning(
-                                        f"文件过大（{size / 1024 / 1024:.2f}MB）超过限制（{config.max_file_size_mb}MB）：{url}"
+                                    raise RuntimeError(
+                                        f"文件过大（{size / 1024 / 1024:.2f}MB）超过限制（{config.max_file_size_mb}MB）"
                                     )
-                                    return False
                             except ValueError:
                                 pass
                         content = await resp.read()
                         if max_file_size is not None and len(content) > max_file_size:
                             logger.warning(
-                                f"下载中发现文件超过限制（{config.max_file_size_mb}MB），中止下载：{url}"
+                                f"下载中发现文件超过限制（{config.max_file_size_mb}MB），中止下载"
                             )
                             save_path.unlink(missing_ok=True)
-                            return False
+                            raise RuntimeError(
+                                f"下载中发现文件超过限制（{config.max_file_size_mb}MB），中止下载"
+                            )
 
                         await asyncio.to_thread(save_path.write_bytes, content)
-                        return True
+                        return
                     else:
-                        logger.error(f"下载失败，状态码：{resp.status}")
-                        return False
+                        raise RuntimeError(f"下载失败，状态码：{resp.status}")
     except Exception as e:
-        logger.error(f"下载异常：{e}")
-        return False
+        raise RuntimeError(f"下载异常：{e}") from e

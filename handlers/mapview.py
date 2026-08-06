@@ -26,6 +26,7 @@ from ..algorithm.pattern import PatternNotManiaError, PatternParseError
 from ..algorithm.estimator.exceptions import ParseError, NotManiaError
 from ..render.mapview import render_analysis_card
 from ..helpers import get_attached_file, forward_results
+from .mania_map import parse_legacy_mapview_request, render_bid, render_file
 
 _CHART_EXTS = (".osu", ".mc", ".osz", ".mcz")
 
@@ -67,6 +68,37 @@ async def run_mapview(plugin, event: AstrMessageEvent):
                     yield r
                 return
             else:
+                # The modern renderer can accept .osu directly. Convert Malody
+                # charts first so attachment users get the same card as BID users.
+                if getattr(plugin, "render_service", None) is not None:
+                    render_path = chart_path
+                    converted_path = None
+                    try:
+                        if file_name.lower().endswith(".mc"):
+                            from ..algorithm.conversion import convert_mc_to_osu
+
+                            converted_path = Path(
+                                await asyncio.to_thread(
+                                    convert_mc_to_osu,
+                                    str(chart_path),
+                                    str(CACHE_DIR),
+                                )
+                            )
+                            render_path = converted_path
+                        runtime: dict[str, object] = {
+                            "speedRate": speed_rate,
+                            "odFlag": od_flag,
+                        }
+                        if cvt_flag:
+                            runtime["cvtFlag"] = cvt_flag[0]
+                        async for r in render_file(
+                            plugin, event, render_path, {}, runtime
+                        ):
+                            yield r
+                    finally:
+                        if converted_path and converted_path.exists():
+                            asyncio.create_task(cleanup_temp_file(converted_path))
+                    return
                 yield event.plain_result(f"已收到文件：{file_name}，正在生成图片...")
                 row = await analyze_mapview_chart(
                     chart_path, file_name, speed_rate, od_flag, cvt_flag, mod_display, CACHE_DIR
@@ -76,6 +108,14 @@ async def run_mapview(plugin, event: AstrMessageEvent):
                 return
 
         if bid is not None:
+            modern_request = parse_legacy_mapview_request(cmd_text)
+            if modern_request is not None and getattr(plugin, "render_service", None):
+                modern_bid, render_overrides, runtime = modern_request
+                async for r in render_bid(
+                    plugin, event, modern_bid, render_overrides, runtime
+                ):
+                    yield r
+                return
             chart_path, file_name = await _download_by_id(bid)
             row = await analyze_mapview_chart(
                 chart_path, file_name, speed_rate, od_flag, cvt_flag, mod_display, CACHE_DIR

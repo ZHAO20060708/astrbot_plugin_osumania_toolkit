@@ -272,7 +272,7 @@ class omtk_help_data:
             "单曲ACC计算",
             "2",
             "3",
-            "可用段位列表(*替换为具体的数字，$替换为版本):\n1. Malody 4K Dan: 使用 *danv$ 或 ex*v$\n2. Malody 4K Extra Dan v2 (Sample): 使用 spex*\n3. osu!mania 4K Dan ~ REFORM (DDMythical): 使用 rf* 或 希腊字母(如alpha)\n备注: zeta和eta默认为Thaumiel，spz为Emik，额外支持haku(白段)\n4. osu!mania 4K LN Dan Courses v2: 使用 ln* \n5. xfpsb: 使用 xfpsb*, 其中*还可以是f \n6. wds0 Dan: 使用 wds0_* ,其中*还可以是j,n,f\n7. Senpai Dan v1: 使用 senpai* 或 senpaiex* \n8. osu!mania 7K Regular Dan Course: 使用 7k*dan 或 7k*, 其中后者包含s,g,z,a \n9. osu!mania 7K LN Dan Course: 使用 7kln*, 其中*还可以是s,g,z,a \n\n查看全部内置段位详情请发送: /omtk acc 3",
+            "可用段位列表(*替换为具体的数字，$替换为版本):\n1. Malody 4K Dan: 使用 *danv$ 或 ex*v$\n2. Malody 4K Extra Dan v2 (Sample): 使用 spex*\n3. osu!mania 4K Dan ~ REFORM (DDMythical): 使用 rf* 或 希腊字母(如alpha)\n备注: zeta和eta默认为Thaumiel，spz为Emik，额外支持haku(白段)、t3(Tachyon v3)、l2(Luminal v2)\n4. osu!mania 4K LN Dan Courses v2: 使用 ln* \n5. xfpsb: 使用 xfpsb*, 其中*还可以是f \n6. wds0 Dan: 使用 wds0_* ,其中*还可以是j,n,f\n7. Senpai Dan v1: 使用 senpai* 或 senpaiex* \n8. osu!mania 7K Regular Dan Course: 使用 7k*dan 或 7k*, 其中后者包含s,g,z,a \n9. osu!mania 7K LN Dan Course: 使用 7kln*, 其中*还可以是s,g,z,a \n\n查看全部内置段位详情请发送: /omtk acc 3",
         ),
         ("acc", "单曲ACC计算", "3", "3", "全部内置段位列表:\n(正在加载...)"),
         (

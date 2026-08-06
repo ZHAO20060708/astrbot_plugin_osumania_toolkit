@@ -1,8 +1,8 @@
 name: astrbot_plugin_osumania_toolkit # 插件唯一识别名，以 astrbot_plugin_ 前缀开头
 display_name: Osu!mania Toolkit # 用于展示的名字，可以是方便人类阅读的名字（需要版本 >= v4.5.0，低版本不会报错，请放心填写）
-desc: AstrBot Osu!mania 工具包：谱面键型分析与难度估计(mapview)、Etterna MSD(ett)、键型分析(pattern)、作弊分析(analyze)、判定偏差/散点/频谱/血条/按压图、单曲ACC、成绩转换(cvtscore)、投皮(percy) 等。 # 插件简短描述
+desc: AstrBot Osu!mania 工具包：新版 ManiaMapAnalyser 谱面卡片(/ma、/mapview、/rework)、Etterna MSD(ett)、键型分析(pattern)、作弊分析(analyze)、判定偏差/散点/频谱/血条/按压图、单曲ACC、成绩转换(cvtscore)、投皮(percy) 等。 # 插件简短描述
 short_desc: osu!mania 谱面、回放、成绩与图像处理工具箱
-version: v1.2.0 # 插件版本号。格式：v1.1.1 或者 v1.1
+version: v1.3.0 # 插件版本号。格式：v1.1.1 或者 v1.1
 author: ZHAO20060708 # 作者
 repo: https://github.com/ZHAO20060708/astrbot_plugin_osumania_toolkit # 插件的仓库地址
 astrbot_version: ">=4.9.2,<5"
