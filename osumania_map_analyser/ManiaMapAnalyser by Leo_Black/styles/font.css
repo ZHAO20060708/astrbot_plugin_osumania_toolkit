@@ -153,33 +153,17 @@
 }
 
 @font-face {
-  font-family: '975 Yuan';
+  font-family: 'WenYuan Rounded SC';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url(./fonts/LXGW975YuanSC-400W.ttf) format('truetype');
+  src: url(./fonts/WenYuanRoundedSC-Regular.otf) format('opentype');
 }
 
 @font-face {
-  font-family: '975 Yuan';
+  font-family: 'WenYuan Rounded SC';
   font-style: normal;
-  font-weight: 600;
+  font-weight: 900;
   font-display: swap;
-  src: url(./fonts/LXGW975YuanSC-500W.ttf) format('truetype');
-}
-
-@font-face {
-  font-family: '975 Yuan';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url(./fonts/LXGW975YuanSC-700W.ttf) format('truetype');
-}
-
-@font-face {
-  font-family: '975 Yuan';
-  font-style: normal;
-  font-weight: 800;
-  font-display: swap;
-  src: url(./fonts/LXGW975YuanSC-700W.ttf) format('truetype');
+  src: url(./fonts/WenYuanRoundedSC-Heavy.otf) format('opentype');
 }

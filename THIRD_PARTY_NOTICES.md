@@ -12,15 +12,14 @@ Source repository: <https://github.com/ZHAO20060708/sunny-rework-js>
 The surrounding adapter remains project code and preserves this application's
 existing text-based estimator API.
 
-## 975 Yuan font
+## WenYuan Rounded SC font
 
-- Files: `osumania_map_analyser/ManiaMapAnalyser by Leo_Black/styles/fonts/LXGW975YuanSC-*.ttf`
-- Source: <https://github.com/lxgw/975Yuan>
+- Files: `osumania_map_analyser/ManiaMapAnalyser by Leo_Black/styles/fonts/WenYuanRoundedSC-Regular.otf` (400) and `WenYuanRoundedSC-Heavy.otf` (900)
+- Source: <https://github.com/takushun-wu/WenYuanFonts>
 - License: SIL Open Font License 1.1
-- License text: `LICENSES/LXGW975Yuan-OFL.txt`
+- License text: `LICENSES/WenYuanFonts-OFL.txt`
 
-The font repository requires the OFL text to accompany redistribution. The
-font is used as the replacement for the previously bundled Torus files.
+The font is used as the replacement for the previously bundled 975 Yuan files.
 
 ## Outfit and Space Grotesk fonts
 
