@@ -3,11 +3,14 @@ from __future__ import annotations
 import os
 import re
 import threading
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from uuid import uuid4
+
+from astrbot.api import logger
 
 from .errors import ManiaMapAnalyserError
 
@@ -48,17 +51,55 @@ def download_beatmap_file(bid: str, temp_dir: Path) -> Path:
             headers={"User-Agent": "astrbot-osu-mania-map-analyser/1.0"},
         )
 
-        try:
-            with urlopen(request, timeout=20) as response:
-                data = response.read(_MAX_BEATMAP_BYTES + 1)
-        except HTTPError as exc:
-            if exc.code == 404:
-                raise ManiaMapAnalyserError(f"未找到 bid {bid} 对应的谱面") from exc
-            raise ManiaMapAnalyserError(f"下载谱面 {bid} 失败：http {exc.code}") from exc
-        except URLError as exc:
-            raise ManiaMapAnalyserError(f"下载谱面 {bid} 失败：{exc.reason}") from exc
-        except (OSError, TimeoutError, ValueError) as exc:
-            raise ManiaMapAnalyserError(f"下载谱面 {bid} 失败：{exc}") from exc
+        # osu.ppy.sh 直连在国内时通时断（SSL EOF 频发），失败重试 3 次，间隔 1 秒。
+        # 404 不重试：谱面不存在，重试也白搭。
+        max_attempts = 4
+        data = None
+        last_exc: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                with urlopen(request, timeout=20) as response:
+                    data = response.read(_MAX_BEATMAP_BYTES + 1)
+                break
+            except HTTPError as exc:
+                if exc.code == 404:
+                    raise ManiaMapAnalyserError(f"未找到 bid {bid} 对应的谱面") from exc
+                last_exc = exc
+                if attempt < max_attempts:
+                    logger.warning(
+                        f"下载谱面 {bid} 失败（HTTP {exc.code}，第 {attempt}/{max_attempts} 次），重试中..."
+                    )
+                    time.sleep(1)
+                continue
+            except URLError as exc:
+                last_exc = exc
+                if attempt < max_attempts:
+                    logger.warning(
+                        f"下载谱面 {bid} 失败（{exc.reason}，第 {attempt}/{max_attempts} 次），重试中..."
+                    )
+                    time.sleep(1)
+                continue
+            except (OSError, TimeoutError, ValueError) as exc:
+                last_exc = exc
+                if attempt < max_attempts:
+                    logger.warning(
+                        f"下载谱面 {bid} 失败（{exc}，第 {attempt}/{max_attempts} 次），重试中..."
+                    )
+                    time.sleep(1)
+                continue
+
+        if data is None:
+            if isinstance(last_exc, HTTPError):
+                raise ManiaMapAnalyserError(
+                    f"下载谱面 {bid} 失败：http {last_exc.code}"
+                ) from last_exc
+            if isinstance(last_exc, URLError):
+                raise ManiaMapAnalyserError(
+                    f"下载谱面 {bid} 失败：{last_exc.reason}"
+                ) from last_exc
+            raise ManiaMapAnalyserError(
+                f"下载谱面 {bid} 失败：{last_exc}"
+            ) from last_exc
 
         if not data:
             raise ManiaMapAnalyserError(f"下载谱面 {bid} 失败：返回内容为空")
