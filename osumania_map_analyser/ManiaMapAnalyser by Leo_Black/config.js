@@ -3,12 +3,12 @@ export const APP_CONFIG = {
     socketHost: "localhost:24050",
 
     options: {
-        contentBar: ["None", "Auto", "Pattern", "Etterna", "Graph", "Full"],
-        srText: ["Auto", "ReworkSR", "MSD", "Pattern", "InterludeSR"],
+        contentBar: ["None", "Auto", "Pattern", "Etterna", "Graph", "ReworkPP", "Full"],
+        srText: ["Auto", "ReworkSR", "MSD", "Pattern", "InterludeSR", "ReworkPP"],
         diffText: ["None", "Graph", "Difficulty", "MSD", "Pattern", "ReworkSR", "InterludeSR"],
-        estimatorAlgorithm: ["Azusa", "Roxy", "Mixed", "Sunny", "Daniel", "Companella"],
-        etternaVersion: ["0.68.0-Unofficial", "0.70.0", "0.72.0", "0.72.3", "0.74.0"],
-        companellaEtternaVersion: ["0.68.0-Unofficial", "0.70.0", "0.72.0", "0.72.3", "0.74.0"],
+        estimatorAlgorithm: ["Azusa", "Roxy", "Mixed", "Sunny", "Daniel", "Companella", "SunnyWindow"],
+        etternaVersion: ["0.68.0-Unofficial", "0.70.0", "0.72.0", "0.72.3", "0.74.0", "0.75.0"],
+        companellaEtternaVersion: ["0.68.0-Unofficial", "0.70.0", "0.72.0", "0.72.3", "0.74.0", "0.75.0"],
         cardOpacity: ["100%", "95%", "90%", "80%", "70%"],
         cardRadius: ["Small", "Medium", "Large"],
         cardBgBlur: ["Off", "4px", "8px", "12px", "16px", "20px"],
@@ -45,7 +45,7 @@ export const APP_CONFIG = {
     },
 
     etterna: {
-        maxSkillValue: 41.0,
+        maxSkillValue: 45.0,
         vibroJackspeedRatioThreshold: 0.95,
     },
 
@@ -70,7 +70,6 @@ export const APP_CONFIG = {
         socketRecalcLazyDelayMs: 200,
         settingsCommandTimeoutMs: 1500,
         pauseDetectEpsilonMs: 0,
-        pauseDetectionThresholdMs: 500,
     },
 
     defaults: {
@@ -82,19 +81,21 @@ export const APP_CONFIG = {
         etternaVersion: "0.72.3",
         companellaEtternaVersion: "0.74.0",
         pauseDetectionEnabled: true,
-        pauseDetectionThresholdMs: 500,
         enableEtternaRainbowBars: false,
         enableStatusMarquee: true,
         vibroDetection: true,
         disableVibroDetection: false,
         useSvDetection: true,
+        display6kLevel: true,
+        extendedEstimationRange: false,
         showModeTagCapsule: true,
         enableNumericDifficulty: true,
-        hideCardDuringPlay: false,
+        cardVisibility: "Always",
         cardOpacity: "95%",
         cardRadius: "Medium",
         cardBgBlur: "4px",
         enableUpdateCheck: true,
+        enableResultCache: true,
         reverseCardExtendDirection: false,
         useOsuFont: true,
         enableOsuTheme: true,
@@ -105,16 +106,22 @@ export const APP_CONFIG = {
         srText: "ReworkSR",
         diffText: "Difficulty",
         debugUseAmount: false,
+        forceSunnyWindow: true,
+        enableLNDifficulty: false,
+        enableAnalyzeLN: false,
+        enableAlwaysShowLNDifficulty: false,
+        enableTelemetry: true,
     },
 
     mods: {
-        knownCodes: ["DA", "NC", "DT", "HT", "HR", "EZ", "DC", "IN", "HO", "MR"],
+        knownCodes: ["DA", "NC", "DT", "HT", "HR", "EZ", "DC", "IN", "HO", "MR", "CL", "SV2"],
         bitFlags: {
             EZ: 2,
             HR: 16,
             DT: 64,
             HT: 256,
             NC: 512,
+            SV2: 536870912,
         },
     },
 };

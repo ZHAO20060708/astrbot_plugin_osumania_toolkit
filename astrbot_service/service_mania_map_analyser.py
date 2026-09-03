@@ -31,6 +31,7 @@ _ETTERNA_VERSIONS = {
     "0.72.0",
     "0.72.3",
     "0.74.0",
+    "0.75.0",
 }
 _CARD_RADII = {"Small", "Medium", "Large"}
 

@@ -64,17 +64,31 @@
                 </div>
 
                 <div class="card-body-shell" id="card-body-shell">
+                    <div class="full-separator" id="sep-pattern" hidden>Pattern</div>
                     <ol id="pattern-clusters" class="cluster-bars">
                         <li class="cluster-item empty">No data</li>
                     </ol>
 
+                    <div class="full-separator" id="sep-etterna" hidden>Etterna | Overall: --</div>
                     <ol id="ett-skill-bars" class="ett-skill-bars" hidden>
                         <li class="ett-skill-item empty">No data</li>
                     </ol>
 
+                    <div class="full-separator" id="sep-pp" hidden>ReworkPP</div>
+                    <ol id="pp-bars" class="pp-bars" hidden>
+                        <li class="pp-item empty">No data</li>
+                    </ol>
+
+                    <div class="full-separator" id="sep-graph" hidden>Graph</div>
                     <div class="body-graph-wrap" id="body-graph-wrap" hidden>
                         <svg id="body-graph" class="body-graph" viewBox="0 0 260 86" preserveAspectRatio="xMidYMid meet" aria-label="Body difficulty graph" role="img">
+                            <defs>
+                                <clipPath id="body-graph-play-clip" clipPathUnits="userSpaceOnUse">
+                                    <rect id="body-graph-play-clip-rect" x="0" y="0" width="0" height="86"></rect>
+                                </clipPath>
+                            </defs>
                             <path id="body-graph-fill" class="star-graph-fill" d=""></path>
+                            <path id="body-graph-fill-play" class="star-graph-fill-play" d="" clip-path="url(#body-graph-play-clip)"></path>
                             <path id="body-graph-line" class="star-graph-line" d=""></path>
                             <g id="body-graph-pause-markers"></g>
                             <line id="body-graph-cursor" class="star-graph-cursor" x1="0" y1="0" x2="0" y2="86" hidden></line>
@@ -85,7 +99,7 @@
                 </div>
 
                 <div class="mode-tag-group">
-                    <span id="mode-tag" class="mode-tag mode-mix">Mix</span>
+                    <span id="mode-tag-subgroup"><span id="mode-tag" class="mode-tag mode-mix">Mix</span></span>
                     <span id="sv-tag" class="mode-tag mode-sv sv-tag" hidden>SV</span>
                 </div>
                 <div id="pause-count" class="pause-count" hidden></div>

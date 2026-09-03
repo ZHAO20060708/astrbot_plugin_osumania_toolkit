@@ -2,28 +2,29 @@
     font-family: "Space Grotesk", sans-serif;
     font-variant-numeric: tabular-nums lining-nums;
     font-size: 48px;
-    font-weight: 700;
+    font-weight: 800;
     line-height: 1;
     color: #f6fbff;
     background: rgba(38, 50, 84, 0.45);
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 20px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    vertical-align: middle;
-    padding: 2px 10px 6px;
-    transform: translateY(-1px);
+    display: inline-block;
+    padding: 4px 10px;
     text-shadow: none;
     transition: color 260ms ease, background-color 260ms ease, transform 260ms ease;
     animation: star-pop 560ms cubic-bezier(0.25, 0.95, 0.35, 1);
 }
 
+.star-value.pp-capsule {
+    box-sizing: border-box;
+    width: var(--pp-capsule-width, 140px);
+    text-align: center;
+}
+
 .main-card:not(.bars-none) .star-value:not(.category-mode) {
     font-size: 52px;
-    padding: 3px 12px 7px;
+    padding: 5px 12px;
     border-radius: 22px;
-    min-height: 62px;
 }
 
 .star-value.has-unit {

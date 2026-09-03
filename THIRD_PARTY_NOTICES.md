@@ -2,10 +2,10 @@
 
 ## Sunny Rework compatibility implementation
 
-The files under `osumania_map_analyser/ManiaMapAnalyser by Leo_Black/js/rework/sunny-rework/` are
-vendored from [ZHAO20060708/sunny-rework-js](https://github.com/ZHAO20060708/sunny-rework-js).
-They target Sunny Rework compatibility revision `2025-04-15` and are
-distributed under that project's MIT license.
+The files under `osumania_map_analyser/ManiaMapAnalyser by Leo_Black/js/rework/sunnyWindowAlgorithm.js` and
+`osumania_map_analyser/ManiaMapAnalyser by Leo_Black/js/rework/sunnyAlgorithm.js` are
+adapted from [ZHAO20060708/sunny-rework-js](https://github.com/ZHAO20060708/sunny-rework-js).
+They target Sunny Rework compatibility and are distributed under that project's MIT license.
 
 Source repository: <https://github.com/ZHAO20060708/sunny-rework-js>
 

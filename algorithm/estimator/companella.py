@@ -4,8 +4,11 @@ import math
 from pathlib import Path
 from typing import Any
 
-import onnxruntime as ort
 import numpy as np
+import typing
+
+if typing.TYPE_CHECKING:
+    import onnxruntime as ort
 
 from .interlude import calculate_interlude_star
 from ..ett.calc import compute_difficulties
@@ -25,7 +28,15 @@ MIN_DAN = 1.0
 MAX_DAN = 20.0
 VARIANT_TEXT = {"--": "low", "-": "mid/low", "": "mid", "+": "mid/high", "++": "high"}
 
-_SESSION: ort.InferenceSession | None = None
+_SESSION: Any = None
+
+
+def _get_ort():
+    try:
+        import onnxruntime as ort
+        return ort
+    except Exception as exc:
+        raise RuntimeError(f"onnxruntime 未安装或不可用: {exc}") from exc
 
 
 def _clamp(value: float, minimum: float, maximum: float) -> float:
@@ -117,11 +128,12 @@ def _build_display_difficulty(label: str, variant: str) -> str:
     return f"{capped_label} {variant_text}"
 
 
-def _get_session() -> ort.InferenceSession:
+def _get_session():
     global _SESSION
     if _SESSION is not None:
         return _SESSION
 
+    ort = _get_ort()
     model_path = _resolve_model_path()
     _SESSION = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
     return _SESSION

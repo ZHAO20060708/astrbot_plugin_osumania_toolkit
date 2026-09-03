@@ -29,6 +29,8 @@ export const reworkBlockEl = document.getElementById("rework");
 export const diffGraphWrapEl = document.getElementById("rework-diff-graph-wrap");
 export const diffGraphSvgEl = document.getElementById("rework-diff-graph");
 export const diffGraphFillEl = document.getElementById("rework-diff-graph-fill");
+export const diffGraphFillPlayEl = document.getElementById("rework-diff-graph-fill-play");
+export const diffGraphPlayClipRectEl = document.getElementById("rework-diff-graph-play-clip-rect");
 export const diffGraphLineEl = document.getElementById("rework-diff-graph-line");
 export const diffGraphCursorEl = document.getElementById("rework-diff-graph-cursor");
 export const diffGraphCursorDotEl = document.getElementById("rework-diff-graph-cursor-dot");
@@ -37,6 +39,8 @@ export const diffGraphErrorEl = document.getElementById("rework-diff-graph-error
 export const bodyGraphWrapEl = document.getElementById("body-graph-wrap");
 export const bodyGraphSvgEl = document.getElementById("body-graph");
 export const bodyGraphFillEl = document.getElementById("body-graph-fill");
+export const bodyGraphFillPlayEl = document.getElementById("body-graph-fill-play");
+export const bodyGraphPlayClipRectEl = document.getElementById("body-graph-play-clip-rect");
 export const bodyGraphLineEl = document.getElementById("body-graph-line");
 export const bodyGraphCursorEl = document.getElementById("body-graph-cursor");
 export const bodyGraphCursorDotEl = document.getElementById("body-graph-cursor-dot");
@@ -46,6 +50,8 @@ export const estDiffCaptionEl = document.getElementById("est-diff-caption");
 export const patternClustersEl = document.getElementById("pattern-clusters");
 export const ettSkillBarsEl = document.getElementById("ett-skill-bars");
 export const pauseCountEl = document.getElementById("pause-count");
+export const ppBarsEl = document.getElementById("pp-bars");
+export const sepPpEl = document.getElementById("sep-pp");
 export const overlayEl = document.getElementById("card-overlay");
 export const overlaySpinnerEl = document.getElementById("overlay-spinner");
 export const overlayTitleEl = document.getElementById("overlay-title");
@@ -53,7 +59,7 @@ export const overlayMessageEl = document.getElementById("overlay-message");
 export const mainCardEl = document.querySelector(".main-card");
 export const dashboardEl = document.querySelector(".dashboard");
 export const titleIconEl = document.querySelector(".title-icon");
-export const modeTagEl = document.getElementById("mode-tag");
+export const modeTagSubGroupEl = document.getElementById("mode-tag-subgroup");
 export const svTagEl = document.getElementById("sv-tag");
 export const starTipEl = document.getElementById("star-tip");
 
@@ -69,6 +75,9 @@ export const state = {
     odFlag: null,
     cvtFlag: null,
     modSignature: "",
+    ppMetrics: null,
+    modCodes: [],
+    classicMod: false,
     contentBar: APP_CONFIG.defaults.contentBar,
     effectiveContentBar: null,
     srText: APP_CONFIG.defaults.srText,
@@ -77,6 +86,9 @@ export const state = {
     userDiffText: APP_CONFIG.defaults.diffText,
     debugUseAmount: APP_CONFIG.defaults.debugUseAmount,
     useSvDetection: APP_CONFIG.defaults.useSvDetection,
+    display6kLevel: APP_CONFIG.defaults.display6kLevel,
+    sunnySR: null,
+    extendedEstimationRange: APP_CONFIG.defaults.extendedEstimationRange,
     diffText: APP_CONFIG.defaults.diffText,
     estimatorAlgorithm: APP_CONFIG.defaults.estimatorAlgorithm,
     actualEstimatorAlgorithm: APP_CONFIG.defaults.estimatorAlgorithm,
@@ -84,15 +96,15 @@ export const state = {
     etternaVersion: APP_CONFIG.defaults.etternaVersion,
     companellaEtternaVersion: APP_CONFIG.defaults.companellaEtternaVersion,
     pauseDetectionEnabled: APP_CONFIG.defaults.pauseDetectionEnabled,
-    pauseDetectionThresholdMs: APP_CONFIG.defaults.pauseDetectionThresholdMs,
     enableEtternaRainbowBars: APP_CONFIG.defaults.enableEtternaRainbowBars,
     enableStatusMarquee: APP_CONFIG.defaults.enableStatusMarquee,
     enableNumericDifficulty: APP_CONFIG.defaults.enableNumericDifficulty,
-    hideCardDuringPlay: APP_CONFIG.defaults.hideCardDuringPlay,
+    cardVisibility: APP_CONFIG.defaults.cardVisibility,
     cardOpacity: APP_CONFIG.defaults.cardOpacity,
     cardRadius: APP_CONFIG.defaults.cardRadius,
     cardBgBlur: APP_CONFIG.defaults.cardBgBlur,
     enableUpdateCheck: APP_CONFIG.defaults.enableUpdateCheck,
+    enableResultCache: APP_CONFIG.defaults.enableResultCache,
     hasAvailableUpdate: false,
     reverseCardExtendDirection: APP_CONFIG.defaults.reverseCardExtendDirection,
     useOsuFont: APP_CONFIG.defaults.useOsuFont,
@@ -101,8 +113,14 @@ export const state = {
     enableCoverArt: APP_CONFIG.defaults.enableCoverArt,
     customBackgroundColor: APP_CONFIG.defaults.customBackgroundColor,
     vibroDetection: APP_CONFIG.defaults.vibroDetection,
+    forceSunnyWindow: APP_CONFIG.defaults.forceSunnyWindow,
+    enableLNDifficulty: APP_CONFIG.defaults.enableLNDifficulty,
+    enableAnalyzeLN: APP_CONFIG.defaults.enableAnalyzeLN,
+    enableAlwaysShowLNDifficulty: APP_CONFIG.defaults.enableAlwaysShowLNDifficulty,
+    enableTelemetry: APP_CONFIG.defaults.enableTelemetry,
     numericDifficulty: null,
     numericDifficultyHint: null,
+    lnStar: 0,
     forceHideNumericDifficulty: false,
     showModeTagCapsule: APP_CONFIG.defaults.showModeTagCapsule,
     showSvTag: false,
@@ -116,8 +134,6 @@ export const state = {
     isPaused: false,
     pauseTimeMs: 0,
     frozenInterpMs: 0,
-    pauseFreezeStartRealMs: 0,
-    pauseFreezeSongTimeMs: 0,
     hasSongTimeSample: false,
     clientStateName: "",
     isInPlayState: false,
@@ -134,7 +150,7 @@ export const state = {
     settingsReceivedFromCommand: false,
     initialSettingsResolver: null,
     analysisRequestSeq: 0,
-    wsEndpoint: APP_CONFIG.defaults.wsEndpoint || SOCKET_HOST
+    wsEndpoint: APP_CONFIG.defaults.wsEndpoint || SOCKET_HOST,
 };
 
 export const MODE_TAG_OPTIONS = APP_CONFIG.options.modeTag;
@@ -157,14 +173,15 @@ export const GRAPH_LOADING_BASELINE_Y = GRAPH_VIEWBOX_HEIGHT - GRAPH_PADDING_BOT
 export const SONG_TIME_JUMP_THRESHOLD_MS = APP_CONFIG.timing.songTimeJumpThresholdMs;
 export const NOTE_END_MARGIN_MS = APP_CONFIG.timing.noteEndMarginMs;
 export const PAUSE_DETECT_EPSILON_MS = APP_CONFIG.timing.pauseDetectEpsilonMs;
-export const PAUSE_DETECTION_THRESHOLD_MS = APP_CONFIG.timing.pauseDetectionThresholdMs;
 
 export const SOCKET_RECALC_LAZY_DELAY_MS = APP_CONFIG.timing.socketRecalcLazyDelayMs;
 export const SETTINGS_COMMAND_TIMEOUT_MS = APP_CONFIG.timing.settingsCommandTimeoutMs;
 
 export const socket = new WebSocketManager(getSocketHost());
 
-export const GRAPH_SUPPORTED_KEY_SET = new Set([4, 6, 7]);
+// 注意：GRAPH_SUPPORTED_KEY_SET 已移除——Graph 数据 = estimator 的 star 序列
+// （Sunny 核心为键数无关算法），任意键数均可渲染；渲染失败由
+// showDiffGraphError("Graph unavailable") 兜底。
 
 const KNOWN_MOD_CODES = APP_CONFIG.mods.knownCodes;
 const MOD_BIT_FLAGS = APP_CONFIG.mods.bitFlags;
@@ -177,20 +194,18 @@ export const {
     parseDebugUseAmountValue,
     parseDiffTextValue,
     parseAutoModeValue,
-    parseUseDanielAlgorithmValue,
     parseEstimatorAlgorithmValue,
     parseAzusaSunnyReferenceHoValue,
     parseEtternaVersionValue,
     parseCompanellaEtternaVersionValue,
     parseEnablePauseDetectionValue,
-    parsePauseDetectionThresholdValue,
-    parseDisableVibroDetectionValue,
+    parseEnableResultCacheValue,
     parseVibroDetectionValue,
     parseEnableEtternaRainbowBarsValue,
     parseEnableStatusMarqueeValue,
     parseShowModeTagCapsuleValue,
     parseEnableNumericDifficultyValue,
-    parseHideCardDuringPlayValue,
+    parseCardVisibilityValue,
     parseCardOpacityValue,
     parseCardRadiusValue,
     parseCardBgBlurValue,
@@ -202,7 +217,14 @@ export const {
     parseEnableCoverArtValue,
     parseCustomBackgroundColorValue,
     parseSvDetectionValue,
+    parseDisplay6kLevelValue,
+    parseExtendedEstimationRangeValue,
     parseWsEndpointValue,
+    parseForceSunnyWindowValue,
+    parseEnableLNDifficultyValue,
+    parseEnableAnalyzeLNValue,
+    parseEnableAlwaysShowLNDifficultyValue,
+    parseEnableTelemetryValue,
 } = createSettingsParsers(APP_CONFIG);
 
 export function getActiveContentBar() {
@@ -220,6 +242,8 @@ export const GRAPH_VIEW_DEFS = [
         wrapEl: diffGraphWrapEl,
         svgEl: diffGraphSvgEl,
         fillEl: diffGraphFillEl,
+        fillPlayEl: diffGraphFillPlayEl,
+        playClipRectEl: diffGraphPlayClipRectEl,
         lineEl: diffGraphLineEl,
         cursorEl: diffGraphCursorEl,
         cursorDotEl: diffGraphCursorDotEl,
@@ -232,6 +256,8 @@ export const GRAPH_VIEW_DEFS = [
         wrapEl: bodyGraphWrapEl,
         svgEl: bodyGraphSvgEl,
         fillEl: bodyGraphFillEl,
+        fillPlayEl: bodyGraphFillPlayEl,
+        playClipRectEl: bodyGraphPlayClipRectEl,
         lineEl: bodyGraphLineEl,
         cursorEl: bodyGraphCursorEl,
         cursorDotEl: bodyGraphCursorDotEl,

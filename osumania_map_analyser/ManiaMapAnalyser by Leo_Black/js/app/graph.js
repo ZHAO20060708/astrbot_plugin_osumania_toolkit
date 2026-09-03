@@ -204,16 +204,17 @@ function formatEstimateDifficultyCaption() {
         : "";
 
     const base = `${prefix}Estimate Difficulty`;
-    if (!state.enableNumericDifficulty || state.forceHideNumericDifficulty) {
+    if ((!state.enableNumericDifficulty || state.forceHideNumericDifficulty) && !state.enableLNDifficulty) {
         return base;
     }
 
     const formatRcCaptionValue = (rawValue) => {
+        if ((!state.enableNumericDifficulty || state.forceHideNumericDifficulty)) return null;
         const text = String(rawValue ?? "").trim();
         if (!text) {
             return text;
         }
-        if (state.currentModeTag === "RC") {
+        if (state.currentModeTag === "RC" && !state.enableLNDifficulty) {
             return text;
         }
         if (/^RC\b/i.test(text)) {
@@ -222,16 +223,23 @@ function formatEstimateDifficultyCaption() {
         return `RC${text}`;
     };
 
+    const formatLnCaptionValue = (rawValue) => {
+        if (!state.enableLNDifficulty || !rawValue || rawValue <= 0) return null;
+        return `LN${rawValue.toFixed(2)}*`
+    }
+
+    let rcValue = null;
+    const lnValue = formatLnCaptionValue(state.lnStar);
     if (Number.isFinite(state.numericDifficulty)) {
-        const valueText = formatRcCaptionValue(state.numericDifficulty.toFixed(2));
-        return `${base}(${valueText})`;
+        rcValue = formatRcCaptionValue(state.numericDifficulty.toFixed(2));
     }
-
     if (typeof state.numericDifficultyHint === "string" && state.numericDifficultyHint.trim().length > 0) {
-        const valueText = formatRcCaptionValue(state.numericDifficultyHint.trim());
-        return `${base}(${valueText})`;
+        rcValue = formatRcCaptionValue(state.numericDifficultyHint.trim());
     }
 
+    if (rcValue && lnValue) return `${base}(${rcValue}|${lnValue})`;
+    else if (rcValue) return `${base}(${rcValue})`;
+    else if (lnValue) return `${base}(${lnValue})`;
     return base;
 }
 
@@ -248,6 +256,18 @@ export function clearPauseMarkersDom(view = null) {
             entry.pauseMarkersEl.innerHTML = "";
         }
     });
+}
+
+function resetPlayedFill(view) {
+    if (!view) {
+        return;
+    }
+    if (view.playClipRectEl) {
+        view.playClipRectEl.setAttribute("width", "0");
+    }
+    if (view.fillPlayEl) {
+        view.fillPlayEl.setAttribute("d", "");
+    }
 }
 
 function drawPauseMarkersForView(view) {
@@ -310,8 +330,6 @@ export function resetPauseRuntime(clearMarkers = false) {
     state.isPaused = false;
     state.pauseTimeMs = 0;
     state.frozenInterpMs = 0;
-    state.pauseFreezeStartRealMs = 0;
-    state.pauseFreezeSongTimeMs = 0;
     state.hasSongTimeSample = false;
     if (clearMarkers) {
         clearAllPauseMarkers();
@@ -330,6 +348,7 @@ export function clearDiffGraph() {
         if (view.fillEl) {
             view.fillEl.setAttribute("d", "");
         }
+        resetPlayedFill(view);
         if (view.lineEl) {
             view.lineEl.setAttribute("d", "");
         }
@@ -350,6 +369,8 @@ export function clearDiffGraph() {
 
         clearPauseMarkersDom(view);
     });
+
+    syncGraphAnimationLoop();
 }
 
 export function setGraphCursorVisible(visible) {
@@ -380,6 +401,8 @@ export function setGraphLoading(isLoading) {
             clearGraphScanEnter(view);
             view.lineEl.setAttribute("d", linePath);
             view.fillEl.setAttribute("d", fillPath);
+            view.fillEl.classList.remove("graph-unplayed"); // 加载骨架不继承上一张图的暗化
+            resetPlayedFill(view);
             setGraphLoadingTextVisible(view, true);
             clearPauseMarkersDom(view);
             if (view.cursorEl) {
@@ -419,6 +442,7 @@ export function showDiffGraphError(message) {
         if (view.fillEl) {
             view.fillEl.setAttribute("d", "");
         }
+        resetPlayedFill(view);
         if (view.lineEl) {
             view.lineEl.setAttribute("d", "");
         }
@@ -435,18 +459,21 @@ export function showDiffGraphError(message) {
 
 export function updateGraphCursor(explicitTimeMs = null) {
     if (!hasAnyGraphModeEnabled()) {
+        forEachGraphView((view) => resetPlayedFill(view));
         setGraphCursorVisible(false);
         return;
     }
 
     const series = state.graphSeries;
     if (!series) {
+        forEachEnabledGraphView((view) => resetPlayedFill(view));
         setGraphCursorVisible(false);
         return;
     }
 
     const timeMs = Number.isFinite(explicitTimeMs) ? explicitTimeMs : getInterpolatedPlaybackTime();
     if (!Number.isFinite(timeMs)) {
+        forEachEnabledGraphView((view) => resetPlayedFill(view));
         setGraphCursorVisible(false);
         return;
     }
@@ -483,26 +510,45 @@ export function updateGraphCursor(explicitTimeMs = null) {
             view.cursorDotEl.setAttribute("cx", x.toFixed(2));
             view.cursorDotEl.setAttribute("cy", y.toFixed(2));
         }
+
+        // clip 宽度 = 游标 x（viewBox 单位）= 已玩边界；暂停时 x 冻结、回退时 x 收缩，自动跟随
+        if (view.playClipRectEl) {
+            view.playClipRectEl.setAttribute("width", x.toFixed(2));
+        }
     });
 
     setGraphCursorVisible(true);
 }
 
-export function startGraphAnimationLoop() {
-    if (state.graphAnimationStarted) {
-        return;
+let graphAnimationFrameId = 0;
+
+function graphAnimationTick() {
+    graphAnimationFrameId = 0;
+    if (hasAnyGraphModeEnabled()) {
+        updateGraphCursor();
+        graphAnimationFrameId = requestAnimationFrame(graphAnimationTick);
+    } else {
+        state.graphAnimationStarted = false;
     }
+}
 
-    state.graphAnimationStarted = true;
-
-    const tick = () => {
-        if (hasAnyGraphModeEnabled()) {
-            updateGraphCursor();
+export function syncGraphAnimationLoop() {
+    if (hasAnyGraphModeEnabled()) {
+        if (!state.graphAnimationStarted) {
+            state.graphAnimationStarted = true;
+            graphAnimationFrameId = requestAnimationFrame(graphAnimationTick);
         }
-        requestAnimationFrame(tick);
-    };
+    } else {
+        if (graphAnimationFrameId) {
+            cancelAnimationFrame(graphAnimationFrameId);
+            graphAnimationFrameId = 0;
+        }
+        state.graphAnimationStarted = false;
+    }
+}
 
-    requestAnimationFrame(tick);
+export function startGraphAnimationLoop() {
+    syncGraphAnimationLoop();
 }
 
 // toFixed(1) is sufficient for a 260px-wide viewBox — saves ~20% string length vs (2)
@@ -601,6 +647,9 @@ export function renderDiffGraph(graphData) {
         forEachEnabledGraphView((view) => {
             if (view.lineEl) view.lineEl.setAttribute("d", linePath);
             if (view.fillEl) view.fillEl.setAttribute("d", fillPath);
+            if (view.fillPlayEl) view.fillPlayEl.setAttribute("d", fillPath);
+            if (view.playClipRectEl) view.playClipRectEl.setAttribute("width", "0");
+            if (view.fillEl) view.fillEl.classList.add("graph-unplayed");
             if (view.errorEl) {
                 view.errorEl.hidden = true;
                 view.errorEl.textContent = "Graph unavailable";
@@ -671,6 +720,8 @@ export function updateDiffTextVisibility() {
     } else {
         setGraphCursorVisible(false);
     }
+
+    syncGraphAnimationLoop();
 
     if (!showRightCapsule && reworkRightCapsuleEl) {
         reworkRightCapsuleEl.textContent = "-";

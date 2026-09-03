@@ -27,7 +27,7 @@ import {
     applyEnableUpdateCheckSetting,
     applyEstimatorAlgorithmSetting,
     applyEtternaVersionSetting,
-    applyHideCardDuringPlaySetting,
+    applyCardVisibilitySetting,
     applyPauseDetectionSetting,
     applyReverseCardExtendDirectionSetting,
     applyShowModeTagCapsuleSetting,
@@ -183,7 +183,7 @@ function applyRenderSettings(settings) {
     applyCardBgBlurSetting(settings.cardBlur);
     applyCardRadiusSetting(settings.cardRadius);
     applyPauseDetectionSetting(false);
-    applyHideCardDuringPlaySetting(false);
+    applyCardVisibilitySetting("Always");
     applyReverseCardExtendDirectionSetting(false);
     applyEnableUpdateCheckSetting(false);
 }

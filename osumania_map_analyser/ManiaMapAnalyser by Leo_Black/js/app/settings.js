@@ -21,23 +21,32 @@ import {
     parseEnableCoverArtValue,
     parseCustomBackgroundColorValue,
     parseEnablePauseDetectionValue,
-    parsePauseDetectionThresholdValue,
+    parseEnableResultCacheValue,
     parseEstimatorAlgorithmValue,
     parseAzusaSunnyReferenceHoValue,
     parseEtternaVersionValue,
     parseCompanellaEtternaVersionValue,
     parseEnableNumericDifficultyValue,
-    parseHideCardDuringPlayValue,
+    parseCardVisibilityValue,
     parseShowModeTagCapsuleValue,
     parseEnableUpdateCheckValue,
     parseReverseCardExtendDirectionValue,
     parseUseOsuFontValue,
     parseSrTextValue,
     parseSvDetectionValue,
+    parseDisplay6kLevelValue,
+    parseExtendedEstimationRangeValue,
     parseVibroDetectionValue,
     parseWsEndpointValue,
+    parseForceSunnyWindowValue,
+    parseEnableLNDifficultyValue,
+    parseEnableAnalyzeLNValue,
+    parseEnableAlwaysShowLNDifficultyValue,
+    parseEnableTelemetryValue,
     patternClustersEl,
+    ppBarsEl,
     reworkStarEl,
+    sepPpEl,
     socket,
     state,
     SETTINGS_COMMAND_TIMEOUT_MS,
@@ -45,20 +54,15 @@ import {
 } from "./appContext.js";
 import {
     normalizeBooleanSetting,
-    normalizeCardOpacityValue,
-    normalizeCardRadiusValue,
-    normalizeCardBgBlurValue,
     normalizeContentBarValue,
     normalizeDiffTextValue,
-    normalizeEtternaVersionValue,
-    normalizeEstimatorAlgorithmValue,
-    normalizeWsEndpointValue,
     normalizeSrTextValue,
 } from "../parser/settingsParser.js";
 import {
     clearDiffGraph,
     redrawPauseMarkers,
     setGraphCursorVisible,
+    syncGraphAnimationLoop,
     updateDiffTextVisibility,
 } from "./graph.js";
 import {
@@ -72,6 +76,8 @@ import { applyCoverThemeForBeatmap, resetCoverTheme } from "./coverTheme.js";
 import { initTriangleField } from "./triangles.js";
 import { scheduleRecompute } from "./scheduler.js";
 import { runUpdateCheckIfDue, runUpdateCheckNow } from "./updateChecker.js";
+import { clearResultCache } from "./resultCache.js";
+import { setTelemetryConfig } from "./telemetry.js";
 
 function isAutoDisplayEnabled() {
     return state.userSrText === "Auto" || state.userContentBar === "Auto";
@@ -95,11 +101,15 @@ function updateContentBarVisibility() {
     if (bodyGraphWrapEl) {
         bodyGraphWrapEl.hidden = !contentBarShows("Graph");
     }
+    if (ppBarsEl) {
+        ppBarsEl.hidden = !contentBarShows("ReworkPP");
+    }
 
     mainCardEl.classList.toggle("bars-full", isFull);
     mainCardEl.classList.toggle("bars-pattern", !isFull && activeContentBar === "Pattern");
     mainCardEl.classList.toggle("bars-etterna", !isFull && activeContentBar === "Etterna");
     mainCardEl.classList.toggle("bars-graph", !isFull && activeContentBar === "Graph");
+    mainCardEl.classList.toggle("bars-pp", !isFull && activeContentBar === "ReworkPP");
     mainCardEl.classList.toggle("bars-none", !isFull && activeContentBar === "None");
 
     if (!contentBarShows("Etterna")) {
@@ -110,6 +120,9 @@ function updateContentBarVisibility() {
     separatorEls.forEach(el => {
         el.hidden = !isFull;
     });
+    if (sepPpEl) {
+        sepPpEl.hidden = !isFull;
+    }
 }
 
 let cardHeightTransitionTimerId = 0;
@@ -133,7 +146,7 @@ function clearCardHeightTransitionState() {
     mainCardEl.style.removeProperty("height");
 }
 
-function animateCardHeightTransition(previousHeight) {
+export function animateCardHeightTransition(previousHeight) {
     if (!mainCardEl) {
         clearCardHeightTransitionState();
         return;
@@ -268,7 +281,8 @@ export function applyEnableCoverArtSetting(value) {
 }
 
 export function applyCustomBackgroundColorSetting(value) {
-    const next = parseCustomBackgroundColorValue([{ uniqueID: "customBackgroundColor", value: value }]);
+    // 输入已由 parseCustomBackgroundColorValue 归一化（#rrggbb 或 #000000）——不再二次 parse。
+    const next = value || "#000000";
     const changed = state.customBackgroundColor !== next;
     state.customBackgroundColor = next;
 
@@ -329,8 +343,22 @@ export function applyUseSvDetectionSetting(value) {
     return changed;
 }
 
+export function applyDisplay6kLevelSetting(value) {
+    const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.display6kLevel);
+    const changed = state.display6kLevel !== next;
+    state.display6kLevel = next;
+    return changed;
+}
+export function applyExtendedEstimationRangeSetting(value) {
+    const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.extendedEstimationRange);
+    const changed = state.extendedEstimationRange !== next;
+    state.extendedEstimationRange = next;
+    return changed;
+}
+
 export function applyWsEndpointSetting(value) {
-    const next = normalizeWsEndpointValue(value, APP_CONFIG.defaults.wsEndpoint || APP_CONFIG.socketHost);
+    // 输入已由 parseWsEndpointValue 归一化（trim、剥协议/路径）——不再二次 normalize。
+    const next = value || APP_CONFIG.defaults.wsEndpoint || APP_CONFIG.socketHost;
     const changed = state.wsEndpoint !== next;
     state.wsEndpoint = next;
 
@@ -338,6 +366,34 @@ export function applyWsEndpointSetting(value) {
         socket.setHost(next, true);
     }
 
+    return changed;
+}
+
+export function applyForceSunnyWindowSetting(value) {
+    const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.forceSunnyWindow);
+    const changed = state.forceSunnyWindow !== next;
+    state.forceSunnyWindow = next;
+    return changed;
+}
+
+export function applyEnableLNDifficultySetting(value) {
+    const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.enableLNDifficulty);
+    const changed = state.enableLNDifficulty !== next;
+    state.enableLNDifficulty = next;
+    return changed;
+}
+
+export function applyEnableAnalyzeLNSetting(value) {
+    const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.enableAnalyzeLN);
+    const changed = state.enableAnalyzeLN !== next;
+    state.enableAnalyzeLN = next;
+    return changed;
+}
+
+export function applyEnableAlwaysShowLNDifficultySetting(value) {
+    const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.enableAlwaysShowLNDifficulty);
+    const changed = state.enableAlwaysShowLNDifficulty !== next;
+    state.enableAlwaysShowLNDifficulty = next;
     return changed;
 }
 
@@ -360,6 +416,12 @@ export function setRuntimeContentBar(contentBar) {
         ettSkillBarsEl.innerHTML = "<li class=\"ett-skill-item empty\">No data</li>";
     }
 
+    if (!contentBarShows("ReworkPP")) {
+        ppBarsEl.innerHTML = "";
+    } else if (!ppBarsEl.innerHTML.trim()) {
+        ppBarsEl.innerHTML = "<li class=\"pp-item empty\">No data</li>";
+    }
+
     updateContentBarVisibility();
     animateCardHeightTransition(previousCardHeight);
     if (!hasAnyGraphModeEnabled()) {
@@ -367,6 +429,7 @@ export function setRuntimeContentBar(contentBar) {
     } else {
         setGraphCursorVisible(false);
     }
+    syncGraphAnimationLoop();
     return changed;
 }
 
@@ -391,6 +454,7 @@ export function setEffectiveContentBarForMap(contentBarOrNull) {
     } else {
         setGraphCursorVisible(false);
     }
+    syncGraphAnimationLoop();
 
     return changed;
 }
@@ -427,7 +491,8 @@ export function refreshAutoDisplayProfile(modeTag = state.currentModeTag || "Mix
 }
 
 export function applyContentBarSetting(contentBar) {
-    const nextBar = normalizeContentBarValue(contentBar) || "Pattern";
+    // 输入已由 parseContentBarValue 归一化并校验（contentBarSet 成员）——不再二次 normalize。
+    const nextBar = contentBar || "Pattern";
     const changed = state.userContentBar !== nextBar;
     state.userContentBar = nextBar;
 
@@ -441,7 +506,8 @@ export function applyContentBarSetting(contentBar) {
 }
 
 export function applySrTextSetting(srText) {
-    const nextText = normalizeSrTextValue(srText) || "ReworkSR";
+    // 输入已由 parseSrTextValue 归一化并校验——不再二次 normalize。
+    const nextText = srText || "ReworkSR";
     const changed = state.userSrText !== nextText;
     state.userSrText = nextText;
 
@@ -455,7 +521,8 @@ export function applySrTextSetting(srText) {
 }
 
 export function applyDiffTextSetting(value) {
-    const next = normalizeDiffTextValue(value) || "Difficulty";
+    // 输入已由 parseDiffTextValue 归一化并校验——不再二次 normalize。
+    const next = value || "Difficulty";
     const changed = state.userDiffText !== next;
     state.userDiffText = next;
 
@@ -465,7 +532,8 @@ export function applyDiffTextSetting(value) {
 }
 
 export function applyEstimatorAlgorithmSetting(value) {
-    const next = normalizeEstimatorAlgorithmValue(value) || APP_CONFIG.defaults.estimatorAlgorithm;
+    // 输入已由 parseEstimatorAlgorithmValue 归一化并校验——不再二次 normalize。
+    const next = value || APP_CONFIG.defaults.estimatorAlgorithm;
     const changed = state.estimatorAlgorithm !== next;
     state.estimatorAlgorithm = next;
     return changed;
@@ -479,14 +547,16 @@ export function applyAzusaSunnyReferenceHoSetting(value) {
 }
 
 export function applyEtternaVersionSetting(value) {
-    const next = normalizeEtternaVersionValue(value) || APP_CONFIG.defaults.etternaVersion;
+    // 输入已由 parseEtternaVersionValue 归一化并校验——不再二次 normalize。
+    const next = value || APP_CONFIG.defaults.etternaVersion;
     const changed = state.etternaVersion !== next;
     state.etternaVersion = next;
     return changed;
 }
 
 export function applyCompanellaEtternaVersionSetting(value) {
-    const next = normalizeEtternaVersionValue(value) || APP_CONFIG.defaults.companellaEtternaVersion;
+    // 输入已由 parseCompanellaEtternaVersionValue 归一化并校验——不再二次 normalize。
+    const next = value || APP_CONFIG.defaults.companellaEtternaVersion;
     const changed = state.companellaEtternaVersion !== next;
     state.companellaEtternaVersion = next;
     return changed;
@@ -501,8 +571,6 @@ export function applyPauseDetectionSetting(value) {
         state.isPaused = false;
         state.pauseTimeMs = 0;
         state.frozenInterpMs = 0;
-        state.pauseFreezeStartRealMs = 0;
-        state.pauseFreezeSongTimeMs = 0;
         state.pauseMarkerTimes = [];
         state.pauseCount = 0;
     } else if (!Number.isFinite(state.frozenInterpMs)) {
@@ -511,14 +579,6 @@ export function applyPauseDetectionSetting(value) {
 
     updatePauseCountVisibility();
     redrawPauseMarkers();
-    return changed;
-}
-
-export function applyPauseDetectionThresholdSetting(value) {
-    const num = Number(value);
-    const next = (Number.isFinite(num) && num > 0) ? Math.round(num) : APP_CONFIG.defaults.pauseDetectionThresholdMs;
-    const changed = state.pauseDetectionThresholdMs !== next;
-    state.pauseDetectionThresholdMs = next;
     return changed;
 }
 
@@ -564,16 +624,18 @@ export function applyEnableNumericDifficultySetting(value) {
     return changed;
 }
 
-export function applyHideCardDuringPlaySetting(value) {
-    const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.hideCardDuringPlay);
-    const changed = state.hideCardDuringPlay !== next;
-    state.hideCardDuringPlay = next;
+export function applyCardVisibilitySetting(value) {
+    const valid = ["DuringPlay", "OutsidePlay", "Always"];
+    const next = valid.includes(value) ? value : APP_CONFIG.defaults.cardVisibility;
+    const changed = state.cardVisibility !== next;
+    state.cardVisibility = next;
     updateCardPlayVisibility();
     return changed;
 }
 
 export function applyCardOpacitySetting(value) {
-    const next = normalizeCardOpacityValue(value) || APP_CONFIG.defaults.cardOpacity;
+    // 输入已由 parseCardOpacityValue 归一化并校验（cardOpacitySet 成员）——不再二次 normalize。
+    const next = value || APP_CONFIG.defaults.cardOpacity;
     const changed = state.cardOpacity !== next;
     state.cardOpacity = next;
     applyVisualStyleSettings();
@@ -581,7 +643,8 @@ export function applyCardOpacitySetting(value) {
 }
 
 export function applyCardRadiusSetting(value) {
-    const next = normalizeCardRadiusValue(value) || APP_CONFIG.defaults.cardRadius;
+    // 输入已由 parseCardRadiusValue 归一化并校验（cardRadiusSet 成员）——不再二次 normalize。
+    const next = value || APP_CONFIG.defaults.cardRadius;
     const changed = state.cardRadius !== next;
     state.cardRadius = next;
     applyVisualStyleSettings();
@@ -589,7 +652,8 @@ export function applyCardRadiusSetting(value) {
 }
 
 export function applyCardBgBlurSetting(value) {
-    const next = normalizeCardBgBlurValue(value) || APP_CONFIG.defaults.cardBgBlur;
+    // 输入已由 parseCardBgBlurValue 归一化并校验（cardBgBlurSet 成员）——不再二次 normalize。
+    const next = value || APP_CONFIG.defaults.cardBgBlur;
     const changed = state.cardBgBlur !== next;
     state.cardBgBlur = next;
     applyVisualStyleSettings();
@@ -613,6 +677,27 @@ export function applyEnableUpdateCheckSetting(value) {
     return changed;
 }
 
+export function applyEnableResultCacheSetting(value) {
+    const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.enableResultCache);
+    const changed = state.enableResultCache !== next;
+    const wasEnabled = state.enableResultCache;
+    state.enableResultCache = next;
+
+    if (changed && wasEnabled && !next) {
+        clearResultCache();
+    }
+
+    return changed;
+}
+
+export function applyEnableTelemetrySetting(value) {
+    const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.enableTelemetry);
+    const changed = state.enableTelemetry !== next;
+    state.enableTelemetry = next;
+    setTelemetryConfig();
+    return changed;
+}
+
 export function applyReverseCardExtendDirectionSetting(value) {
     const next = normalizeBooleanSetting(value, APP_CONFIG.defaults.reverseCardExtendDirection);
     const changed = state.reverseCardExtendDirection !== next;
@@ -628,6 +713,70 @@ export function applyUseOsuFontSetting(value) {
     applyVisualStyleSettings();
     return changed;
 }
+
+/**
+ * Data-driven settings schema: every tosu setting maps to a parse+apply pair.
+ * The command listener below iterates this table (instead of hardcoding one
+ * line per setting), and preset modules import the key sets to stay in sync
+ * automatically. Adding a setting = add one row here + a parse/apply pair.
+ */
+const SETTING_HANDLERS = [
+    { key: "wsEndpoint", parse: parseWsEndpointValue, apply: applyWsEndpointSetting },
+    { key: "contentBar", parse: parseContentBarValue, apply: applyContentBarSetting },
+    { key: "srText", parse: parseSrTextValue, apply: applySrTextSetting },
+    { key: "debugUseAmount", parse: parseDebugUseAmountValue, apply: applyDebugUseAmountSetting },
+    { key: "diffText", parse: parseDiffTextValue, apply: applyDiffTextSetting },
+    { key: "estimatorAlgorithm", parse: parseEstimatorAlgorithmValue, apply: applyEstimatorAlgorithmSetting },
+    { key: "azusaSunnyReferenceHo", parse: parseAzusaSunnyReferenceHoValue, apply: applyAzusaSunnyReferenceHoSetting },
+    { key: "etternaVersion", parse: parseEtternaVersionValue, apply: applyEtternaVersionSetting },
+    { key: "companellaEtternaVersion", parse: parseCompanellaEtternaVersionValue, apply: applyCompanellaEtternaVersionSetting },
+    { key: "enablePauseDetection", parse: parseEnablePauseDetectionValue, apply: applyPauseDetectionSetting },
+    { key: "enableEtternaRainbowBars", parse: parseEnableEtternaRainbowBarsValue, apply: applyEnableEtternaRainbowBarsSetting },
+    { key: "enableStatusMarquee", parse: parseEnableStatusMarqueeValue, apply: applyEnableStatusMarqueeSetting },
+    { key: "VibroDetection", parse: parseVibroDetectionValue, apply: applyVibroDetectionSetting },
+    { key: "showModeTagCapsule", parse: parseShowModeTagCapsuleValue, apply: applyShowModeTagCapsuleSetting },
+    { key: "enableNumericDifficulty", parse: parseEnableNumericDifficultyValue, apply: applyEnableNumericDifficultySetting },
+    { key: "cardVisibility", parse: parseCardVisibilityValue, apply: applyCardVisibilitySetting },
+    { key: "cardOpacity", parse: parseCardOpacityValue, apply: applyCardOpacitySetting },
+    { key: "cardRadius", parse: parseCardRadiusValue, apply: applyCardRadiusSetting },
+    { key: "cardBgBlur", parse: parseCardBgBlurValue, apply: applyCardBgBlurSetting },
+    { key: "enableUpdateCheck", parse: parseEnableUpdateCheckValue, apply: applyEnableUpdateCheckSetting },
+    { key: "enableResultCache", parse: parseEnableResultCacheValue, apply: applyEnableResultCacheSetting },
+    { key: "reverseCardExtendDirection", parse: parseReverseCardExtendDirectionValue, apply: applyReverseCardExtendDirectionSetting },
+    { key: "useOsuFont", parse: parseUseOsuFontValue, apply: applyUseOsuFontSetting },
+    { key: "useSvDetection", parse: parseSvDetectionValue, apply: applyUseSvDetectionSetting },
+    { key: "forceSunnyWindow", parse: parseForceSunnyWindowValue, apply: applyForceSunnyWindowSetting },
+    { key: "enableLNDifficulty", parse: parseEnableLNDifficultyValue, apply: applyEnableLNDifficultySetting },
+    { key: "enableAnalyzeLN", parse: parseEnableAnalyzeLNValue, apply: applyEnableAnalyzeLNSetting },
+    { key: "enableAlwaysShowLNDifficulty", parse: parseEnableAlwaysShowLNDifficultyValue, apply: applyEnableAlwaysShowLNDifficultySetting },
+    { key: "enableTelemetry", parse: parseEnableTelemetryValue, apply: applyEnableTelemetrySetting },
+    { key: "display6kLevel", parse: parseDisplay6kLevelValue, apply: applyDisplay6kLevelSetting },
+    { key: "extendedEstimationRange", parse: parseExtendedEstimationRangeValue, apply: applyExtendedEstimationRangeSetting },
+    { key: "enableOsuTheme", parse: parseEnableOsuThemeValue, apply: applyEnableOsuThemeSetting },
+    { key: "enableFloatingTriangles", parse: parseEnableFloatingTrianglesValue, apply: applyEnableFloatingTrianglesSetting },
+    { key: "enableCoverArt", parse: parseEnableCoverArtValue, apply: applyEnableCoverArtSetting },
+    { key: "customBackgroundColor", parse: parseCustomBackgroundColorValue, apply: applyCustomBackgroundColorSetting },
+];
+
+/** Keys whose change requires a recompute (mirrors the old recomputeNeeded list). */
+export const SETTING_RECOMPUTE_KEYS = new Set([
+    "contentBar", "srText", "debugUseAmount", "diffText",
+    "estimatorAlgorithm", "azusaSunnyReferenceHo", "etternaVersion",
+    "companellaEtternaVersion", "enablePauseDetection",
+    "enableEtternaRainbowBars", "VibroDetection", "showModeTagCapsule",
+    "useSvDetection", "forceSunnyWindow", "enableLNDifficulty",
+    "enableAnalyzeLN", "enableAlwaysShowLNDifficulty", "display6kLevel",
+    "extendedEstimationRange",
+]);
+
+/** Keys whose change invalidates the result cache (mirrors the old clearResultCache list). */
+export const SETTING_CACHE_KEYS = new Set([
+    "estimatorAlgorithm", "azusaSunnyReferenceHo", "etternaVersion",
+    "companellaEtternaVersion", "useSvDetection", "VibroDetection",
+    "wsEndpoint", "forceSunnyWindow", "enableLNDifficulty",
+    "enableAnalyzeLN", "enableAlwaysShowLNDifficulty",
+    "extendedEstimationRange",
+]);
 
 function extractSettingsPayloadFromCommandPacket(packet) {
     if (Array.isArray(packet)) {
@@ -667,34 +816,10 @@ export function setupSettingsCommandListener() {
             hasKey(key) ? applyFn(parseResult) : false;
 
         state.settingsReceivedFromCommand = true;
-        const wsEndpointChanged = applyIf("wsEndpoint", applyWsEndpointSetting, parseWsEndpointValue(payload));
-        const contentBarChanged = applyIf("contentBar", applyContentBarSetting, parseContentBarValue(payload));
-        const srTextChanged = applyIf("srText", applySrTextSetting, parseSrTextValue(payload));
-        const debugChanged = applyIf("debugUseAmount", applyDebugUseAmountSetting, parseDebugUseAmountValue(payload));
-        const diffTextChanged = applyIf("diffText", applyDiffTextSetting, parseDiffTextValue(payload));
-        const estimatorChanged = applyIf("estimatorAlgorithm", applyEstimatorAlgorithmSetting, parseEstimatorAlgorithmValue(payload));
-        const azusaSunnyReferenceHoChanged = applyIf("azusaSunnyReferenceHo", applyAzusaSunnyReferenceHoSetting, parseAzusaSunnyReferenceHoValue(payload));
-        const etternaVersionChanged = applyIf("etternaVersion", applyEtternaVersionSetting, parseEtternaVersionValue(payload));
-        const companellaEtternaVersionChanged = applyIf("companellaEtternaVersion", applyCompanellaEtternaVersionSetting, parseCompanellaEtternaVersionValue(payload));
-        const pauseChanged = applyIf("enablePauseDetection", applyPauseDetectionSetting, parseEnablePauseDetectionValue(payload));
-        const pauseThresholdChanged = applyIf("pauseDetectionThreshold", applyPauseDetectionThresholdSetting, parsePauseDetectionThresholdValue(payload));
-        const rainbowChanged = applyIf("enableEtternaRainbowBars", applyEnableEtternaRainbowBarsSetting, parseEnableEtternaRainbowBarsValue(payload));
-        const statusMarqueeChanged = applyIf("enableStatusMarquee", applyEnableStatusMarqueeSetting, parseEnableStatusMarqueeValue(payload));
-        const vibroChanged = applyIf("VibroDetection", applyVibroDetectionSetting, parseVibroDetectionValue(payload));
-        const modeTagVisibilityChanged = applyIf("showModeTagCapsule", applyShowModeTagCapsuleSetting, parseShowModeTagCapsuleValue(payload));
-        const numericDifficultyChanged = applyIf("enableNumericDifficulty", applyEnableNumericDifficultySetting, parseEnableNumericDifficultyValue(payload));
-        const hideCardDuringPlayChanged = applyIf("hideCardDuringPlay", applyHideCardDuringPlaySetting, parseHideCardDuringPlayValue(payload));
-        const cardOpacityChanged = applyIf("cardOpacity", applyCardOpacitySetting, parseCardOpacityValue(payload));
-        const cardRadiusChanged = applyIf("cardRadius", applyCardRadiusSetting, parseCardRadiusValue(payload));
-        const cardBgBlurChanged = applyIf("cardBgBlur", applyCardBgBlurSetting, parseCardBgBlurValue(payload));
-        const enableUpdateCheckChanged = applyIf("enableUpdateCheck", applyEnableUpdateCheckSetting, parseEnableUpdateCheckValue(payload));
-        const reverseCardDirectionChanged = applyIf("reverseCardExtendDirection", applyReverseCardExtendDirectionSetting, parseReverseCardExtendDirectionValue(payload));
-        const osuFontChanged = applyIf("useOsuFont", applyUseOsuFontSetting, parseUseOsuFontValue(payload));
-        const svChanged = applyIf("useSvDetection", applyUseSvDetectionSetting, parseSvDetectionValue(payload));
-        const osuThemeChanged = applyIf("enableOsuTheme", applyEnableOsuThemeSetting, parseEnableOsuThemeValue(payload));
-        const floatingTrianglesChanged = applyIf("enableFloatingTriangles", applyEnableFloatingTrianglesSetting, parseEnableFloatingTrianglesValue(payload));
-        const coverArtChanged = applyIf("enableCoverArt", applyEnableCoverArtSetting, parseEnableCoverArtValue(payload));
-        const customColorChanged = applyIf("customBackgroundColor", applyCustomBackgroundColorSetting, parseCustomBackgroundColorValue(payload));
+        const changedMap = {};
+        for (const handler of SETTING_HANDLERS) {
+            changedMap[handler.key] = applyIf(handler.key, handler.apply, handler.parse(payload));
+        }
 
         const legacyAutoMode = parseAutoModeValue(payload);
         if (legacyAutoMode && !isAutoDisplayEnabled()) {
@@ -703,49 +828,22 @@ export function setupSettingsCommandListener() {
             refreshAutoDisplayProfile();
         }
 
-        const changed = contentBarChanged
-            || wsEndpointChanged
-            || srTextChanged
-            || debugChanged
-            || diffTextChanged
-            || estimatorChanged
-            || azusaSunnyReferenceHoChanged
-            || etternaVersionChanged
-            || companellaEtternaVersionChanged
-            || pauseChanged
-            || pauseThresholdChanged
-            || rainbowChanged
-            || statusMarqueeChanged
-            || vibroChanged
-            || modeTagVisibilityChanged
-            || numericDifficultyChanged
-            || hideCardDuringPlayChanged
-            || cardOpacityChanged
-            || cardRadiusChanged
-            || cardBgBlurChanged
-            || enableUpdateCheckChanged
-            || reverseCardDirectionChanged
-            || osuFontChanged
-            || osuThemeChanged
-            || floatingTrianglesChanged
-            || coverArtChanged
-            || customColorChanged
-            || svChanged;
+        const changed = SETTING_HANDLERS.some((handler) => changedMap[handler.key]);
+        const recomputeNeeded = SETTING_HANDLERS.some(
+            (handler) => SETTING_RECOMPUTE_KEYS.has(handler.key) && changedMap[handler.key],
+        );
 
-        const recomputeNeeded = contentBarChanged
-            || srTextChanged
-            || debugChanged
-            || diffTextChanged
-            || estimatorChanged
-            || azusaSunnyReferenceHoChanged
-            || etternaVersionChanged
-            || companellaEtternaVersionChanged
-            || pauseChanged
-            || pauseThresholdChanged
-            || rainbowChanged
-            || vibroChanged
-            || modeTagVisibilityChanged
-            || svChanged;
+        // Invalidate cached results when any computation-affecting setting changed.
+        // wsEndpoint is listed explicitly: it lives in `changed` only (not recomputeNeeded).
+        // debugUseAmount + display6kLevel are display-only (toggle-diff proved zero
+        // output-contract diffs): they stay in recomputeNeeded so the cache HIT path
+        // re-derives without clearing the cache or re-fetching.
+        // enableAlwaysShowLNDifficulty stays here — toggle-diff showed real estDiff diffs.
+        if (SETTING_HANDLERS.some(
+            (handler) => SETTING_CACHE_KEYS.has(handler.key) && changedMap[handler.key],
+        )) {
+            clearResultCache();
+        }
 
         if (typeof state.initialSettingsResolver === "function") {
             const resolve = state.initialSettingsResolver;
@@ -813,17 +911,17 @@ export async function loadSettings() {
         applyEtternaVersionSetting(parseEtternaVersionValue(source));
         applyCompanellaEtternaVersionSetting(parseCompanellaEtternaVersionValue(source));
         applyPauseDetectionSetting(parseEnablePauseDetectionValue(source));
-        applyPauseDetectionThresholdSetting(parsePauseDetectionThresholdValue(source));
         applyEnableEtternaRainbowBarsSetting(parseEnableEtternaRainbowBarsValue(source));
         applyEnableStatusMarqueeSetting(parseEnableStatusMarqueeValue(source));
         applyVibroDetectionSetting(parseVibroDetectionValue(source));
         applyShowModeTagCapsuleSetting(parseShowModeTagCapsuleValue(source));
         applyEnableNumericDifficultySetting(parseEnableNumericDifficultyValue(source));
-        applyHideCardDuringPlaySetting(parseHideCardDuringPlayValue(source));
+        applyCardVisibilitySetting(parseCardVisibilityValue(source));
         applyCardOpacitySetting(parseCardOpacityValue(source));
         applyCardRadiusSetting(parseCardRadiusValue(source));
         applyCardBgBlurSetting(parseCardBgBlurValue(source));
         applyEnableUpdateCheckSetting(parseEnableUpdateCheckValue(source));
+        applyEnableResultCacheSetting(parseEnableResultCacheValue(source));
         applyReverseCardExtendDirectionSetting(parseReverseCardExtendDirectionValue(source));
         applyUseOsuFontSetting(parseUseOsuFontValue(source));
         applyEnableOsuThemeSetting(parseEnableOsuThemeValue(source));
@@ -831,6 +929,13 @@ export async function loadSettings() {
         applyEnableCoverArtSetting(parseEnableCoverArtValue(source));
         applyCustomBackgroundColorSetting(parseCustomBackgroundColorValue(source));
         applyUseSvDetectionSetting(parseSvDetectionValue(source));
+        applyForceSunnyWindowSetting(parseForceSunnyWindowValue(source));
+        applyEnableLNDifficultySetting(parseEnableLNDifficultyValue(source));
+        applyEnableAnalyzeLNSetting(parseEnableAnalyzeLNValue(source));
+        applyEnableAlwaysShowLNDifficultySetting(parseEnableAlwaysShowLNDifficultyValue(source));
+        applyEnableTelemetrySetting(parseEnableTelemetryValue(source));
+        applyDisplay6kLevelSetting(parseDisplay6kLevelValue(source));
+        applyExtendedEstimationRangeSetting(parseExtendedEstimationRangeValue(source));
     }
 
     // Apply file settings as baseline immediately
@@ -849,17 +954,17 @@ export async function loadSettings() {
             etternaVersion: APP_CONFIG.defaults.etternaVersion,
             companellaEtternaVersion: APP_CONFIG.defaults.companellaEtternaVersion,
             enablePauseDetection: APP_CONFIG.defaults.pauseDetectionEnabled,
-            pauseDetectionThreshold: APP_CONFIG.defaults.pauseDetectionThresholdMs,
             enableEtternaRainbowBars: APP_CONFIG.defaults.enableEtternaRainbowBars,
             enableStatusMarquee: APP_CONFIG.defaults.enableStatusMarquee,
             VibroDetection: APP_CONFIG.defaults.vibroDetection,
             showModeTagCapsule: APP_CONFIG.defaults.showModeTagCapsule,
             enableNumericDifficulty: APP_CONFIG.defaults.enableNumericDifficulty,
-            hideCardDuringPlay: APP_CONFIG.defaults.hideCardDuringPlay,
+            cardVisibility: APP_CONFIG.defaults.cardVisibility,
             cardOpacity: APP_CONFIG.defaults.cardOpacity,
             cardRadius: APP_CONFIG.defaults.cardRadius,
             cardBgBlur: APP_CONFIG.defaults.cardBgBlur,
             enableUpdateCheck: APP_CONFIG.defaults.enableUpdateCheck,
+            enableResultCache: APP_CONFIG.defaults.enableResultCache,
             reverseCardExtendDirection: APP_CONFIG.defaults.reverseCardExtendDirection,
             useOsuFont: APP_CONFIG.defaults.useOsuFont,
             enableOsuTheme: APP_CONFIG.defaults.enableOsuTheme,
@@ -867,6 +972,13 @@ export async function loadSettings() {
             enableCoverArt: APP_CONFIG.defaults.enableCoverArt,
             customBackgroundColor: APP_CONFIG.defaults.customBackgroundColor,
             useSvDetection: APP_CONFIG.defaults.useSvDetection,
+            forceSunnyWindow: APP_CONFIG.defaults.forceSunnyWindow,
+            enableLNDifficulty: APP_CONFIG.defaults.enableLNDifficulty,
+            enableAnalyzeLN: APP_CONFIG.defaults.enableAnalyzeLN,
+            enableAlwaysShowLNDifficulty: APP_CONFIG.defaults.enableAlwaysShowLNDifficulty,
+            enableTelemetry: APP_CONFIG.defaults.enableTelemetry,
+            display6kLevel: APP_CONFIG.defaults.display6kLevel,
+            extendedEstimationRange: APP_CONFIG.defaults.extendedEstimationRange,
         });
     }
 

@@ -3,15 +3,18 @@ from __future__ import annotations
 import atexit
 import functools
 import json
+import logging
 import threading
 from concurrent.futures import Future
 from dataclasses import dataclass
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from queue import Queue
+from queue import Empty, Queue
 from typing import Any
 
 from .errors import ManiaMapAnalyserError
+
+logger = logging.getLogger(__name__)
 
 
 class _QuietStaticHandler(SimpleHTTPRequestHandler):
@@ -63,13 +66,20 @@ class RenderRequest:
     capture_target: str
 
 
+DEFAULT_IDLE_TIMEOUT_SECONDS: int = 600
+
+
 class ChromiumRenderRuntime:
-    def __init__(self, static_root: Path) -> None:
+    def __init__(
+        self,
+        static_root: Path,
+        idle_timeout_seconds: int = DEFAULT_IDLE_TIMEOUT_SECONDS,
+    ) -> None:
         self.static_root = static_root
+        self.idle_timeout_seconds = max(10, idle_timeout_seconds)
         self._jobs: Queue[tuple[RenderRequest, Future[Path]] | None] = Queue()
         self._ready = threading.Event()
         self._closed = False
-        self._startup_error: Exception | None = None
         self._static_server: StaticFileServer | None = None
         self._browser = None
         self._context = None
@@ -85,8 +95,6 @@ class ChromiumRenderRuntime:
 
     def render(self, request: RenderRequest) -> Path:
         self._ready.wait()
-        if self._startup_error is not None:
-            raise self._normalize_startup_error(self._startup_error)
         if self._closed:
             raise ManiaMapAnalyserError("Chromium 渲染线程已关闭")
 
@@ -102,39 +110,50 @@ class ChromiumRenderRuntime:
         self._jobs.put(None)
         self._thread.join(timeout=5)
 
-    def _worker_loop(self) -> None:
-        try:
+    def _ensure_runtime_ready(self) -> None:
+        if self._static_server is None:
             self._static_server = StaticFileServer(self.static_root)
             self._static_server.start()
-            self._launch_browser()
             self._bridge_url = (
                 f"http://127.0.0.1:{self._static_server.port}"
                 "/bridge/render_bridge.html"
             )
-        except Exception as exc:  # pragma: no cover - startup failures are environment-specific
-            self._startup_error = exc
-            self._ready.set()
-            self._shutdown_worker()
-            return
+        if self._browser is None:
+            self._launch_browser()
 
+    def _worker_loop(self) -> None:
         self._ready.set()
 
-        while True:
-            job = self._jobs.get()
+        while not self._closed:
+            try:
+                job = self._jobs.get(timeout=self.idle_timeout_seconds)
+            except Empty:
+                if self._browser is not None:
+                    logger.info(
+                        "Chromium 渲染进程闲置超时 (%ds)，已自动关闭以释放内存",
+                        self.idle_timeout_seconds,
+                    )
+                    self._term_browser()
+                continue
+
             if job is None:
                 break
             request, future = job
 
             try:
+                self._ensure_runtime_ready()
                 result = self._render_page(request)
             except Exception as exc:
-                future.set_exception(exc)
+                normalized = (
+                    exc
+                    if isinstance(exc, ManiaMapAnalyserError)
+                    else self._normalize_startup_error(exc)
+                    if self._browser is None
+                    else exc
+                )
+                future.set_exception(normalized)
                 if self._is_browser_crash(exc):
                     self._term_browser()
-                    try:
-                        self._launch_browser()
-                    except Exception:
-                        pass
             else:
                 future.set_result(result)
 
