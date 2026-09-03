@@ -32,28 +32,12 @@ from .api.osu import download_file_by_id
 from .config import apply_plugin_config
 from .file.cache import CACHE_DIR
 from .file.cleanup import cleanup_old_cache, cleanup_paths
-from .handlers.analyze import run_analyze
-from .handlers.cvtscore import run_cvtscore
-from .handlers.delta_scatter import run_delta, run_scatter
-from .handlers.ett import run_ett
-from .handlers.mapview import run_mapview
-from .handlers.mania_map import run_mania_map
-from .handlers.omtk import run_omtk
-from .handlers.pattern import run_pattern
-from .handlers.percy import run_percy
 from .astrbot_service.dependency_bootstrap import bootstrap_plugin_runtime
-from .astrbot_service.service_mania_map_analyser import ManiaMapAnalyserService
 
-# 导入 osu!mania 工具箱命令处理器（移植自 nonebot-plugin-osumania-toolkit）
-from .handlers.replay_viz import run_lifebar, run_pressingtime, run_spectrum
-from .one_last_image import (
-    Config as OLIConfig,
-)
-from .one_last_image import (
-    make_diagonal_diff,
-    make_side_by_side_diff,
-    render_one_last_image,
-)
+import typing
+if typing.TYPE_CHECKING:
+    from .astrbot_service.service_mania_map_analyser import ManiaMapAnalyserService
+    from .one_last_image import Config as OLIConfig
 
 
 def _coerce_int(value: object, fallback: int) -> int:
@@ -92,7 +76,7 @@ class OsuManiaToolkit(Star):
         self.image_dir = self.plugin_dir / "images"
         self.cache_dir = CACHE_DIR
         self.config = apply_plugin_config(config)
-        self.render_service: ManiaMapAnalyserService | None = None
+        self.render_service: "ManiaMapAnalyserService | None" = None
         self.render_startup_error = ""
         self.render_semaphore = asyncio.Semaphore(
             max(1, min(_coerce_int(self.config.max_concurrency, 5), 5))
@@ -127,6 +111,7 @@ class OsuManiaToolkit(Star):
 
     def _initialize_map_renderer(self) -> None:
         bootstrap_plugin_runtime(self.plugin_dir, CACHE_DIR.parent)
+        from .astrbot_service.service_mania_map_analyser import ManiaMapAnalyserService
         self.render_service = ManiaMapAnalyserService(
             plugin_root=self.plugin_dir,
             plugin_data_path=CACHE_DIR.parent,
@@ -600,78 +585,91 @@ class OsuManiaToolkit(Star):
     @filter.command("omtk")
     async def omtk_cmd(self, event: AstrMessageEvent):
         """osu!mania 工具箱帮助。用法: /omtk [命令名] [页码]"""
+        from .handlers.omtk import run_omtk
         async for r in run_omtk(self, event):
             yield r
 
     @filter.command("ma", alias={"mag"})
     async def mania_map_cmd(self, event: AstrMessageEvent):
         """新谱面分析卡片。用法: /ma [模式] <bid> [+dt/+ht/+in/+ho]。"""
+        from .handlers.mania_map import run_mania_map
         async for r in run_mania_map(self, event):
             yield r
 
     @filter.command("mapview", alias={"rework"})
     async def mapview_cmd(self, event: AstrMessageEvent):
         """谱面键型分析与难度估计。BID 和单图使用新前端；图包保留批量分析。"""
+        from .handlers.mapview import run_mapview
         async for r in run_mapview(self, event):
             yield r
 
     @filter.command("ett", alias={"msd"})
     async def ett_cmd(self, event: AstrMessageEvent):
         """计算谱面 Etterna MSD。用法: /ett b<bid> x[speed]，或回复谱面/图包文件"""
+        from .handlers.ett import run_ett
         async for r in run_ett(self, event):
             yield r
 
     @filter.command("pattern", alias={"键型"})
     async def pattern_cmd(self, event: AstrMessageEvent):
         """谱面键型分析。回复 .osu/.mc/.osz/.mcz 文件或 /pattern b<bid>，加 -d 输出详细文本"""
+        from .handlers.pattern import run_pattern
         async for r in run_pattern(self, event):
             yield r
 
     @filter.command("analyze", alias={"分析", "analyse"})
     async def analyze_cmd(self, event: AstrMessageEvent):
         """回放作弊分析。回复 .osr/.mr 回放，可选 b<bid> 指定谱面，加 -reason 输出详情"""
+        from .handlers.analyze import run_analyze
         async for r in run_analyze(self, event):
             yield r
 
     @filter.command("delta", alias={"偏差"})
     async def delta_cmd(self, event: AstrMessageEvent):
         """判定偏差柱状图。回复 .osr/.mr 回放并使用 b<bid> 指定谱面"""
+        from .handlers.delta_scatter import run_delta
         async for r in run_delta(self, event):
             yield r
 
     @filter.command("scatter", alias={"散点"})
     async def scatter_cmd(self, event: AstrMessageEvent):
         """判定散点图。回复 .osr/.mr 回放并使用 b<bid> 指定谱面"""
+        from .handlers.delta_scatter import run_scatter
         async for r in run_scatter(self, event):
             yield r
 
     @filter.command("spectrum", alias={"频谱"})
     async def spectrum_cmd(self, event: AstrMessageEvent):
         """回放打击频谱图。回复 .osr/.mr 回放"""
+        from .handlers.replay_viz import run_spectrum
         async for r in run_spectrum(self, event):
             yield r
 
     @filter.command("lifebar", alias={"血条", "life"})
     async def lifebar_cmd(self, event: AstrMessageEvent):
         """回放血条变化图。回复 .osr 回放"""
+        from .handlers.replay_viz import run_lifebar
         async for r in run_lifebar(self, event):
             yield r
 
     @filter.command("pressingtime", alias={"按压"})
     async def pressingtime_cmd(self, event: AstrMessageEvent):
         """回放按键时间分析。回复 .osr/.mr 回放"""
+        from .handlers.replay_viz import run_pressingtime
         async for r in run_pressingtime(self, event):
             yield r
 
     @filter.command("percy", alias={"投皮"})
     async def percy_cmd(self, event: AstrMessageEvent):
         """LN 投皮修改。回复 .png 面身图片，用法: /percy [目标程度] [lazer]"""
+        from .handlers.percy import run_percy
         async for r in run_percy(self, event):
             yield r
 
     @filter.command("cvtscore", alias={"转换"})
     async def cvtscore_cmd(self, event: AstrMessageEvent):
         """成绩转换。/cvtscore [bid] [目标ruleset] [-sv2]，随后按提示发送回放与谱面"""
+        from .handlers.cvtscore import run_cvtscore
         async for r in run_cvtscore(self, event):
             yield r
 
@@ -770,6 +768,7 @@ class OsuManiaToolkit(Star):
                         v = int(v)
                     kw[k] = v
             try:
+                from .one_last_image import Config as OLIConfig, render_one_last_image, make_side_by_side_diff, make_diagonal_diff
                 config = OLIConfig(**kw)
             except Exception as e:
                 yield event.plain_result(f"参数提取或验证错误: {e}")
