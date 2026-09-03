@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
 from .interlude import calculate_interlude_star
 from ..ett.calc import compute_difficulties
 from .exceptions import UnsupportedKeyError
-from .shared import load_osu_chart, resolve_chart_path
+from .shared import js_fixed, load_osu_chart, resolve_chart_path
 from .sunny import estimate_sunny_result
 
 
@@ -49,19 +49,17 @@ def _resolve_model_path() -> Path:
         # 未来可以支持更多候选路径，例如用户自定义路径或环境变量指定路径
     ]
     for candidate in candidates:
-        if candidate.is_file():
+        if candidate.exists() and candidate.is_file():
             return candidate
-    raise FileNotFoundError("Companella ONNX model not found")
+    raise FileNotFoundError(f"未找到 Companella 模型文件: {candidates[0]}")
 
 
 def _extract_first_numeric_value(value: Any) -> float:
     if isinstance(value, (int, float)):
         return float(value)
-    if isinstance(value, np.generic):
-        return float(value)
     if isinstance(value, np.ndarray):
         flattened = value.reshape(-1)
-        if flattened.size:
+        if flattened.size > 0:
             return _extract_first_numeric_value(flattened[0])
     if isinstance(value, (list, tuple)) and value:
         return _extract_first_numeric_value(value[0])
@@ -81,7 +79,7 @@ def _parse_prediction(raw_value: float) -> tuple[int, str]:
     if raw_value >= MAX_DAN:
         return 19, "++"
 
-    dan_level = int(_clamp(round(raw_value), 1, 20))
+    dan_level = int(_clamp(math.floor(raw_value + 0.5), 1, 20))
     dan_index = dan_level - 1
     offset = raw_value - dan_level
     if offset <= -0.3:
@@ -97,7 +95,7 @@ def _parse_prediction(raw_value: float) -> tuple[int, str]:
     return dan_index, variant
 
 
-def _capitalize_label(label: Any) -> str:
+def _capitalize_label(label: str) -> str:
     text = str(label or "?").strip()
     if not text:
         return "?"
@@ -176,8 +174,8 @@ def classify_companella_difficulty(
     shifted_raw_value = _clamp(raw_model_value, MIN_DAN, MAX_DAN) + 1.0
     dan_index, variant = _parse_prediction(shifted_raw_value)
     label = DAN_LABELS[dan_index] if 0 <= dan_index < len(DAN_LABELS) else "?"
-    rounded_raw = round(shifted_raw_value, 2)
-    rounded_center = round(shifted_raw_value)
+    rounded_raw = js_fixed(shifted_raw_value, 2)
+    rounded_center = math.floor(shifted_raw_value + 0.5)
     confidence = max(0.0, 1.0 - abs(shifted_raw_value - rounded_center) * 2.0)
 
     return {
@@ -207,17 +205,24 @@ def estimate_companella_result(
     sunny_result: dict[str, Any] | None = None,
     interlude_star: float | None = None,
     msd_values: dict[str, float] | None = None,
+    chart: Any = None,
 ) -> dict[str, Any]:
-    sunny_result = sunny_result or estimate_sunny_result(source, speed_rate, None, cvt_flag)
+    sunny_result = sunny_result or estimate_sunny_result(
+        source, speed_rate, None, cvt_flag, chart=chart
+    )
     if int(sunny_result.get("columnCount", 0) or 0) != 4:
         raise UnsupportedKeyError("Companella only supports 4K maps")
 
     if interlude_star is None:
-        interlude_star = calculate_interlude_star(source, speed_rate, cvt_flag)
+        interlude_star = calculate_interlude_star(source, speed_rate, cvt_flag, chart=chart)
 
     if msd_values is None:
-        chart = load_osu_chart(_resolve_source_for_analysis(source))
-        msd_values = compute_difficulties(chart, music_rate=speed_rate, keycount=4)
+        chart_obj = (
+            chart.clone()
+            if chart is not None
+            else load_osu_chart(_resolve_source_for_analysis(source))
+        )
+        msd_values = compute_difficulties(chart_obj, music_rate=speed_rate, keycount=4)
 
     companella = classify_companella_difficulty(
         msd_values=msd_values,

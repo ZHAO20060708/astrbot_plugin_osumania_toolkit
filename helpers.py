@@ -96,6 +96,9 @@ async def get_attached_file(
     return None
 
 
+_TEMPLATE_CACHE: dict[str, str] = {}
+
+
 async def render_template(
     template_name: str,
     data: dict,
@@ -108,7 +111,10 @@ async def render_template(
     templates carry fixed pixel widths in CSS, so the renderer's default full-page
     screenshot reproduces the upstream layout. PNG is forced for the glass-style cards.
     """
-    tmpl_str = (_TEMPLATE_DIR / template_name).read_text(encoding="utf-8")
+    tmpl_str = _TEMPLATE_CACHE.get(template_name)
+    if tmpl_str is None:
+        tmpl_str = (_TEMPLATE_DIR / template_name).read_text(encoding="utf-8")
+        _TEMPLATE_CACHE[template_name] = tmpl_str
     opts = {"type": "png", "full_page": True}
     if options:
         opts.update(options)

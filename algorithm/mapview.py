@@ -10,6 +10,7 @@ from .conversion import convert_mc_to_osu
 from .estimator.companella import estimate_companella_result
 from .estimator.mixed import apply_companella_to_mixed_result
 from .estimator.mixed import estimate_mixed_result
+from .estimator.shared import load_osu_chart
 from .estimator.sunny import build_sunny_result
 from .pattern import PatternNotManiaError, PatternParseError, analyze_pattern_file
 from .estimator.exceptions import ParseError, NotManiaError
@@ -125,9 +126,20 @@ async def analyze_mapview_chart(
         except Exception as e:
             raise ParseError(f".mc 转 .osu 失败: {e}") from e
 
+    # 单次解析，各消费者拿 clone。
+    try:
+        base_chart = await asyncio.to_thread(load_osu_chart, str(target_file))
+    except ParseError as e:
+        detail = _format_parse_error_detail(e)
+        raise ParseError(f"Rework 解析阶段失败: {detail}") from e
+
     try:
         sr, ln_ratio, column_count = await get_rework_result(
-            str(target_file), speed_rate, od_flag, cvt_flag
+            str(target_file),
+            speed_rate,
+            od_flag,
+            cvt_flag,
+            chart=base_chart.clone(),
         )
     except ParseError as e:
         detail = _format_parse_error_detail(e)
@@ -144,6 +156,7 @@ async def analyze_mapview_chart(
             od_flag,
             cvt_flag,
             sunny_result,
+            chart=base_chart.clone(),
         )
         mixed_diff_text = str(mixed_result.get("estDiff", sunny_result["estDiff"]))
     except Exception:
@@ -157,6 +170,7 @@ async def analyze_mapview_chart(
                 speed_rate,
                 cvt_flag,
                 sunny_result=sunny_result,
+                chart=base_chart.clone(),
             )
             mixed_result = apply_companella_to_mixed_result(mixed_result, companella_result)
             mixed_diff_text = str(mixed_result.get("estDiff", mixed_diff_text))
@@ -169,7 +183,13 @@ async def analyze_mapview_chart(
         detail = _format_parse_error_detail(e)
         raise PatternParseError(f"键型解析阶段失败: {detail}") from e
 
-    meta_data = resolve_meta_data(target_file, target_name)
+    # 复用已解析的 base_chart 元信息，避免对同一文件重复解析。
+    meta_data = getattr(base_chart, "meta_data", None)
+    if not (
+        isinstance(meta_data, dict)
+        and {"Creator", "Artist", "Title", "Version"}.issubset(meta_data)
+    ):
+        meta_data = resolve_meta_data(target_file, target_name)
 
     merged_clusters = _merge_duplicate_clusters(pattern_result.report.Clusters)
     top_five = merged_clusters[:5]
@@ -233,6 +253,7 @@ async def analyze_mapview_zip(
     cvt_flag: list[str],
     mod_display: str,
     cache_dir: Path,
+    max_charts: int | None = None,
 ) -> tuple[list[dict[str, Any]], list[str], int]:
     temp_dir = cache_dir / f"mapview_batch_{int(time.time())}_{os.getpid()}"
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -252,7 +273,15 @@ async def analyze_mapview_zip(
             return results, errors, 0
         total = len(chart_files)
         # 限制单次处理谱面数量，避免长时间阻塞
-        max_charts = config.batch_max_charts if config.batch_max_charts > 0 else len(chart_files)
+        max_charts = (
+            max_charts
+            if max_charts is not None
+            else (
+                config.batch_max_charts
+                if config.batch_max_charts > 0
+                else len(chart_files)
+            )
+        )
         if len(chart_files) > max_charts:
             errors.append(
                 f"图包包含 {len(chart_files)} 个谱面，超过单次处理谱面数量 {max_charts} 个。"

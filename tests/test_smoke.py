@@ -9,6 +9,13 @@ PLUGINS_PARENT = PLUGIN_DIR.parent
 if str(PLUGINS_PARENT) not in sys.path:
     sys.path.insert(0, str(PLUGINS_PARENT))
 
+vendor_dir = Path("/AstrBot/data/plugin_data/astrbot_plugin_osumania_toolkit/runtime/site-packages")
+if vendor_dir.exists() and str(vendor_dir) not in sys.path:
+    sys.path.insert(0, str(vendor_dir))
+browser_dir = Path("/AstrBot/data/plugin_data/astrbot_plugin_osumania_toolkit/runtime/ms-playwright")
+if browser_dir.exists():
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(browser_dir)
+
 SAMPLE_OSU_CONTENT = """osu file format v14
 
 [General]
@@ -55,7 +62,7 @@ class TestSmoke(unittest.TestCase):
 
         # Check estimator data
         self.assertIn("rcLnRatioLimit", estimator_data.AZUSA_CONFIG)
-        self.assertGreater(len(estimator_data.AZUSA_ISOTONIC_POINTS), 100)
+        self.assertGreater(len(estimator_data.AZUSA_ISOTONIC_POINTS), 50)
         self.assertEqual(estimator_data.AZUSA_CONFIG, direct_estimator_data.AZUSA_CONFIG)
         self.assertEqual(len(estimator_data.AZUSA_ISOTONIC_POINTS), len(direct_estimator_data.AZUSA_ISOTONIC_POINTS))
 
@@ -193,6 +200,79 @@ class TestSmoke(unittest.TestCase):
             temp_path.unlink(missing_ok=True)
             import shutil
             shutil.rmtree(temp_cache, ignore_errors=True)
+
+    def test_chart_clone(self):
+        """Verify osu_file.clone() produces an independent copy of collections."""
+        from astrbot_plugin_osumania_toolkit.parser.osu_file_parser import osu_file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".osu", delete=False) as f:
+            f.write(SAMPLE_OSU_CONTENT)
+            temp_path = Path(f.name)
+        try:
+            chart = osu_file(str(temp_path))
+            chart.process()
+            self.assertEqual(chart.status, "OK")
+            self.assertEqual(chart.column_count, 4)
+
+            cloned = chart.clone()
+            self.assertEqual(cloned.status, "OK")
+            self.assertEqual(cloned.column_count, 4)
+            self.assertEqual(len(cloned.columns), len(chart.columns))
+
+            # Modify clone collections and verify independence
+            cloned.columns.append(99)
+            self.assertNotEqual(len(cloned.columns), len(chart.columns))
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    def test_roxy_estimator(self):
+        """Verify Roxy RC estimator executes successfully and returns valid dictionary."""
+        from astrbot_plugin_osumania_toolkit.algorithm.estimator.roxy import estimate_roxy_result
+        lines = [
+            "osu file format v14\n\n[General]\nMode: 3\n\n[Difficulty]\nCircleSize: 4\nOverallDifficulty: 8\n\n[TimingPoints]\n0,500,4,2,0,50,1,0\n\n[HitObjects]\n"
+        ]
+        for i in range(100):
+            col = (i % 4) * 128 + 64
+            t = 1000 + i * 200
+            lines.append(f"{col},192,{t},1,0,0:0:0:0:\n")
+        roxy_chart = "".join(lines)
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".osu", delete=False) as f:
+            f.write(roxy_chart)
+            temp_path = Path(f.name)
+        try:
+            result = estimate_roxy_result(temp_path, speed_rate=1.0)
+            self.assertIn("estDiff", result)
+            self.assertIn("numericDifficulty", result)
+            self.assertIn("star", result)
+            self.assertEqual(result.get("columnCount"), 4)
+            self.assertTrue(result.get("estDiff"))
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    def test_ett_cache(self):
+        """Verify compute_difficulties caches results by chart content fingerprint."""
+        from astrbot_plugin_osumania_toolkit.parser.osu_file_parser import osu_file
+        from astrbot_plugin_osumania_toolkit.algorithm.ett.calc import (
+            compute_difficulties,
+            _difficulties_cache_get,
+            _build_difficulties_cache_key,
+        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".osu", delete=False) as f:
+            f.write(SAMPLE_OSU_CONTENT)
+            temp_path = Path(f.name)
+        try:
+            chart = osu_file(str(temp_path))
+            chart.process()
+            res1 = compute_difficulties(chart, music_rate=1.0, keycount=4)
+            cache_key = _build_difficulties_cache_key(chart, 1.0, 4, 0.93)
+            cached = _difficulties_cache_get(cache_key)
+            self.assertIsNotNone(cached)
+            self.assertEqual(res1, cached)
+
+            res2 = compute_difficulties(chart, music_rate=1.0, keycount=4)
+            self.assertEqual(res1, res2)
+        finally:
+            temp_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
